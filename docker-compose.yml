@@ -1,0 +1,26 @@
+# Self-host dudee with Docker Compose:
+#   cp .env.example .env        # add at least one model key
+#   docker compose up -d
+#   docker compose logs dudee   # shows the link with your token
+#
+# By default the app is only reachable from this machine (127.0.0.1). To reach it from elsewhere,
+# change the port line to "4777:4777", put it behind HTTPS, and set DUDE_ALLOWED_HOSTS.
+services:
+  dudee:
+    build: .
+    image: dudee:local
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4777:4777"
+    env_file: .env
+    environment:
+      # Fixed token so the link survives restarts. Change it to something long and random.
+      DUDE_UI_TOKEN: ${DUDE_UI_TOKEN:-change-me-to-a-long-random-string}
+      DUDE_COMPANY: ${DUDE_COMPANY:-}
+      DUDE_MODEL: ${DUDE_MODEL:-}
+      # DUDE_ALLOWED_HOSTS: dudee.example.com
+    volumes:
+      - dudee-data:/data
+
+volumes:
+  dudee-data:

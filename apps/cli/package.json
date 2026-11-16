@@ -1,0 +1,43 @@
+{
+  "name": "dudee",
+  "version": "2.0.0",
+  "description": "Open-source AI employees you run yourself: marketing, content, calls and research staff that work with your own model keys, with a web app, approvals, skills and routines.",
+  "license": "MIT",
+  "homepage": "https://github.com/Nexa-Rupa/dudee#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nexa-Rupa/dudee.git",
+    "directory": "apps/cli"
+  },
+  "bugs": { "url": "https://github.com/Nexa-Rupa/dudee/issues" },
+  "type": "module",
+  "keywords": ["ai", "ai-agents", "ai-employees", "agents", "self-hosted", "llm", "mcp", "agent-skills", "automation"],
+  "bin": { "dudee": "dist/index.js" },
+  "files": ["dist", "web", "packs", "README.md", "LICENSE"],
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "build": "tsup && node scripts/copy-assets.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx --conditions=dude-source src/index.ts",
+    "prepack": "pnpm run build"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "2.0.115",
+    "@ai-sdk/google": "2.0.111",
+    "@ai-sdk/openai": "2.0.143",
+    "@ai-sdk/openai-compatible": "1.0.63",
+    "@modelcontextprotocol/sdk": "1.20.2",
+    "ai": "5.0.289",
+    "commander": "13.1.0",
+    "croner": "9.1.0",
+    "yaml": "2.8.4",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@dude/core": "workspace:*",
+    "@dude/employees": "workspace:*",
+    "@dude/server": "workspace:*",
+    "@dude/web": "workspace:*",
+    "tsup": "8.5.1"
+  }
+}

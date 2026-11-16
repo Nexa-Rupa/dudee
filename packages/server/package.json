@@ -1,0 +1,29 @@
+{
+  "name": "@dude/server",
+  "version": "0.1.0",
+  "description": "Local HTTP + SSE server for the dude web app.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "dude-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --conditions=dude-source --test test/*.test.ts",
+    "demo": "tsx --conditions=dude-source scripts/demo.ts"
+  },
+  "dependencies": {
+    "@dude/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@dude/employees": "workspace:*",
+    "@dude/web": "workspace:*",
+    "ai": "5.0.289"
+  }
+}

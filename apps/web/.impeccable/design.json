@@ -1,0 +1,804 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-16T09:46:07.230Z",
+  "title": "Design System: dude",
+  "extensions": {
+    "colorMeta": {
+      "credential-ground": {
+        "role": "neutral",
+        "displayName": "Credential Ground",
+        "purpose": "Page wall behind badges; row hover on white panels.",
+        "canonical": "#eef1f5",
+        "oklch": "oklch(95.7% 0.006 255.5)",
+        "tonalRamp": [
+          "#0a0b0c",
+          "#232426",
+          "#3e4043",
+          "#5b5e61",
+          "#7e8084",
+          "#a2a5a8",
+          "#c9cacc",
+          "#eeeeef"
+        ]
+      },
+      "badge-stock": {
+        "role": "neutral",
+        "displayName": "Badge Stock",
+        "purpose": "Badges, slips, panels, inputs, composer.",
+        "canonical": "#ffffff",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#5d5d5d",
+          "#808080",
+          "#a4a4a4",
+          "#cacaca",
+          "#eeeeee"
+        ]
+      },
+      "sunk-stock": {
+        "role": "neutral",
+        "displayName": "Sunk Stock",
+        "purpose": "Quiet hover, neutral pills, empty bar tracks.",
+        "canonical": "#e4e8ee",
+        "oklch": "oklch(93.0% 0.009 258.3)",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#222427",
+          "#3d4045",
+          "#5a5e63",
+          "#7d8086",
+          "#a2a5a9",
+          "#c9cbcd",
+          "#eeeeef"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "purpose": "1px dividers and ruled lists.",
+        "canonical": "#d9dee7",
+        "oklch": "oklch(89.9% 0.013 262.4)",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#212429",
+          "#3c4047",
+          "#5a5e65",
+          "#7c8088",
+          "#a1a5ac",
+          "#c8cbcf",
+          "#eeeef0"
+        ]
+      },
+      "hairline-strong": {
+        "role": "neutral",
+        "displayName": "Hairline Strong",
+        "purpose": "Secondary button borders, composer, dashed outlines.",
+        "canonical": "#c3cad6",
+        "oklch": "oklch(83.7% 0.018 261.3)",
+        "tonalRamp": [
+          "#090b0f",
+          "#20242b",
+          "#3a404a",
+          "#585e68",
+          "#7a818c",
+          "#9fa5ae",
+          "#c7cbd0",
+          "#edeef0"
+        ]
+      },
+      "ink": {
+        "role": "primary",
+        "displayName": "Rail Ink",
+        "purpose": "Rail, primary buttons, working strip, user bubble, focus.",
+        "canonical": "#14161b",
+        "oklch": "oklch(20.0% 0.010 268.2)",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#222428",
+          "#3d4045",
+          "#5b5d64",
+          "#7d8087",
+          "#a2a4aa",
+          "#c9cace",
+          "#eeeeef"
+        ]
+      },
+      "ink-hover": {
+        "role": "primary",
+        "displayName": "Ink Hover",
+        "purpose": "Rail item hover.",
+        "canonical": "#20242c",
+        "oklch": "oklch(26.0% 0.016 264.2)",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#21242a",
+          "#3b4049",
+          "#595e67",
+          "#7b808a",
+          "#a0a5ad",
+          "#c8cacf",
+          "#eeeef0"
+        ]
+      },
+      "ink-raised": {
+        "role": "primary",
+        "displayName": "Ink Raised",
+        "purpose": "Current rail item; primary button hover.",
+        "canonical": "#2a2e38",
+        "oklch": "oklch(30.1% 0.019 268.1)",
+        "tonalRamp": [
+          "#0a0b0f",
+          "#21242b",
+          "#3b404a",
+          "#595d69",
+          "#7b808c",
+          "#a0a4ae",
+          "#c8cad0",
+          "#eeeef0"
+        ]
+      },
+      "muted-text": {
+        "role": "neutral",
+        "displayName": "Muted Text",
+        "purpose": "Secondary copy and meta lines.",
+        "canonical": "#545b69",
+        "oklch": "oklch(47.0% 0.024 264.3)",
+        "tonalRamp": [
+          "#090b10",
+          "#20242d",
+          "#39404d",
+          "#575e6c",
+          "#79808f",
+          "#9ea5b1",
+          "#c7cbd2",
+          "#edeef1"
+        ]
+      },
+      "faint-text": {
+        "role": "neutral",
+        "displayName": "Faint Text",
+        "purpose": "Tertiary numerals and timestamps on white stock only.",
+        "canonical": "#6a7282",
+        "oklch": "oklch(55.1% 0.027 264.3)",
+        "tonalRamp": [
+          "#090b10",
+          "#1f242e",
+          "#39404e",
+          "#565e6d",
+          "#788091",
+          "#9ea5b2",
+          "#c6cbd3",
+          "#edeef1"
+        ]
+      },
+      "rail-text": {
+        "role": "neutral",
+        "displayName": "Rail Text",
+        "purpose": "Resting nav text on ink.",
+        "canonical": "#b9c0cc",
+        "oklch": "oklch(80.6% 0.019 261.3)",
+        "tonalRamp": [
+          "#090b0f",
+          "#20242b",
+          "#3a404a",
+          "#585e68",
+          "#7a818c",
+          "#9fa5ae",
+          "#c7cbd0",
+          "#edeef0"
+        ]
+      },
+      "rail-label": {
+        "role": "neutral",
+        "displayName": "Rail Label",
+        "purpose": "Section labels and model id on ink.",
+        "canonical": "#8f97a6",
+        "oklch": "oklch(67.5% 0.024 263.1)",
+        "tonalRamp": [
+          "#090b10",
+          "#1f242d",
+          "#39404d",
+          "#575e6c",
+          "#79808f",
+          "#9ea5b1",
+          "#c7cbd2",
+          "#edeef1"
+        ]
+      },
+      "needs-amber": {
+        "role": "secondary",
+        "displayName": "Needs-You Amber",
+        "purpose": "Counts, hazard stripes, needs-you highlights. Means the owner.",
+        "canonical": "#f2b33d",
+        "oklch": "oklch(80.6% 0.147 79.0)",
+        "tonalRamp": [
+          "#180600",
+          "#3f1800",
+          "#672f00",
+          "#884f00",
+          "#ae7300",
+          "#cc9b46",
+          "#e2c699",
+          "#f6eddf"
+        ]
+      },
+      "needs-amber-light": {
+        "role": "secondary",
+        "displayName": "Stripe Amber",
+        "purpose": "Second colour of the hazard stripe.",
+        "canonical": "#f6c766",
+        "oklch": "oklch(85.2% 0.127 83.6)",
+        "tonalRamp": [
+          "#160800",
+          "#391d00",
+          "#5f3600",
+          "#7f5500",
+          "#a47800",
+          "#c39f56",
+          "#ddc8a0",
+          "#f4eee1"
+        ]
+      },
+      "needs-amber-soft": {
+        "role": "secondary",
+        "displayName": "Amber Wash",
+        "purpose": "Waiting work chips, warning notes, local pill.",
+        "canonical": "#fdf1d6",
+        "oklch": "oklch(96.1% 0.038 86.9)",
+        "tonalRamp": [
+          "#0e0b04",
+          "#2a2314",
+          "#483f28",
+          "#675d45",
+          "#8a7f67",
+          "#ada490",
+          "#cfcabe",
+          "#f0eeea"
+        ]
+      },
+      "needs-amber-text": {
+        "role": "secondary",
+        "displayName": "Amber Text",
+        "purpose": "Readable amber-family text on the wash.",
+        "canonical": "#7a4f00",
+        "oklch": "oklch(46.4% 0.099 73.2)",
+        "tonalRamp": [
+          "#150800",
+          "#391c00",
+          "#5e3500",
+          "#7f5308",
+          "#a47636",
+          "#c39d6c",
+          "#ddc7ab",
+          "#f4ede4"
+        ]
+      },
+      "ok-green": {
+        "role": "neutral",
+        "displayName": "Working Green",
+        "purpose": "Working mark, connected provider, done steps.",
+        "canonical": "#0b7a55",
+        "oklch": "oklch(51.4% 0.108 163.1)",
+        "tonalRamp": [
+          "#001106",
+          "#002f18",
+          "#00502e",
+          "#00704c",
+          "#34946d",
+          "#70b695",
+          "#aed5c1",
+          "#e6f2eb"
+        ]
+      },
+      "ok-green-soft": {
+        "role": "neutral",
+        "displayName": "Green Wash",
+        "purpose": "Connected pill, done step check.",
+        "canonical": "#dcf1e7",
+        "oklch": "oklch(94.0% 0.026 165.6)",
+        "tonalRamp": [
+          "#070d0a",
+          "#1b2722",
+          "#33443c",
+          "#50625a",
+          "#72857d",
+          "#99a9a1",
+          "#c4cdc9",
+          "#ecefee"
+        ]
+      },
+      "live-dot": {
+        "role": "neutral",
+        "displayName": "Live Dot",
+        "purpose": "Server connection dot on the ink rail.",
+        "canonical": "#3ccf8e",
+        "oklch": "oklch(76.2% 0.155 159.5)",
+        "tonalRamp": [
+          "#001202",
+          "#00330d",
+          "#00551e",
+          "#00763c",
+          "#009b5e",
+          "#53bc89",
+          "#a3d9ba",
+          "#e3f3e9"
+        ]
+      },
+      "danger-red": {
+        "role": "neutral",
+        "displayName": "Danger Red",
+        "purpose": "Failed steps, errors, removal.",
+        "canonical": "#b4231f",
+        "oklch": "oklch(50.1% 0.181 27.9)",
+        "tonalRamp": [
+          "#230000",
+          "#540000",
+          "#870000",
+          "#ad1918",
+          "#d7483e",
+          "#f27e70",
+          "#fcb6ad",
+          "#ffe8e5"
+        ]
+      },
+      "danger-red-soft": {
+        "role": "neutral",
+        "displayName": "Danger Wash",
+        "purpose": "Danger button hover.",
+        "canonical": "#fbeceb",
+        "oklch": "oklch(95.5% 0.016 22.1)",
+        "tonalRamp": [
+          "#0e0a0a",
+          "#2a2221",
+          "#483c3c",
+          "#675a59",
+          "#8a7d7c",
+          "#ada2a1",
+          "#cfc9c8",
+          "#f0eeee"
+        ]
+      },
+      "role-marketing": {
+        "role": "tertiary",
+        "displayName": "Marketing Coral-Red",
+        "purpose": "Marketing Manager role band.",
+        "canonical": "#c8402b",
+        "oklch": "oklch(56.4% 0.176 31.6)",
+        "tonalRamp": [
+          "#220000",
+          "#520000",
+          "#850000",
+          "#ab210b",
+          "#d54c36",
+          "#ef806c",
+          "#fbb8aa",
+          "#ffe9e4"
+        ]
+      },
+      "role-content": {
+        "role": "tertiary",
+        "displayName": "Content Violet",
+        "purpose": "Content Creator role band.",
+        "canonical": "#5b3ac0",
+        "oklch": "oklch(47.0% 0.197 287.6)",
+        "tonalRamp": [
+          "#0c002c",
+          "#270264",
+          "#43129f",
+          "#5e3dc3",
+          "#7e64ed",
+          "#a092ff",
+          "#c7c2ff",
+          "#edecff"
+        ]
+      },
+      "role-calls": {
+        "role": "tertiary",
+        "displayName": "Calls Green",
+        "purpose": "Calling Agent role band.",
+        "canonical": "#0b7a55",
+        "oklch": "oklch(51.4% 0.108 163.1)",
+        "tonalRamp": [
+          "#001106",
+          "#002f18",
+          "#00502e",
+          "#00704c",
+          "#34946d",
+          "#70b695",
+          "#aed5c1",
+          "#e6f2eb"
+        ]
+      },
+      "role-research": {
+        "role": "tertiary",
+        "displayName": "Research Blue",
+        "purpose": "Research Analyst role band.",
+        "canonical": "#2459c4",
+        "oklch": "oklch(49.4% 0.177 262.2)",
+        "tonalRamp": [
+          "#00062a",
+          "#001962",
+          "#00329b",
+          "#2055bf",
+          "#427ae8",
+          "#73a3fd",
+          "#aecbff",
+          "#e5efff"
+        ]
+      },
+      "role-umber": {
+        "role": "tertiary",
+        "displayName": "Umber",
+        "purpose": "Hashed band for unassigned packs.",
+        "canonical": "#8a4b0f",
+        "oklch": "oklch(48.0% 0.109 57.3)",
+        "tonalRamp": [
+          "#190500",
+          "#3f1600",
+          "#682c00",
+          "#8a4b0f",
+          "#b06e39",
+          "#ce976e",
+          "#e4c3ac",
+          "#f7ece5"
+        ]
+      },
+      "role-teal": {
+        "role": "tertiary",
+        "displayName": "Teal",
+        "purpose": "Hashed band for unassigned packs.",
+        "canonical": "#0f6e7a",
+        "oklch": "oklch(49.4% 0.081 208.5)",
+        "tonalRamp": [
+          "#000f13",
+          "#002b33",
+          "#004b56",
+          "#056a76",
+          "#3a8e9a",
+          "#73b0ba",
+          "#afd2d7",
+          "#e6f1f3"
+        ]
+      },
+      "role-plum": {
+        "role": "tertiary",
+        "displayName": "Plum",
+        "purpose": "Hashed band for unassigned packs.",
+        "canonical": "#a0306e",
+        "oklch": "oklch(49.6% 0.160 350.4)",
+        "tonalRamp": [
+          "#1e000f",
+          "#49002b",
+          "#76004b",
+          "#9b2b69",
+          "#c3518d",
+          "#e082af",
+          "#f0b8d1",
+          "#fbe9f0"
+        ]
+      },
+      "role-slate": {
+        "role": "tertiary",
+        "displayName": "Slate",
+        "purpose": "Hashed band and fallback role colour.",
+        "canonical": "#3f4a5c",
+        "oklch": "oklch(40.7% 0.034 260.2)",
+        "tonalRamp": [
+          "#080b11",
+          "#1d2430",
+          "#354052",
+          "#535e71",
+          "#758195",
+          "#9ba5b6",
+          "#c5cbd5",
+          "#edeef2"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "First-run step headings; 30px under 760px."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page titles; 26px under 760px, 20px in the chat header."
+      },
+      "badge-name": {
+        "displayName": "Badge Name",
+        "purpose": "Employee names on badges; 28px on the issue preview."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section headings: Needs you, Done today, Choose a role."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Base copy; prose capped at 62ch to 70ch."
+      },
+      "ui": {
+        "displayName": "UI",
+        "purpose": "Strips, ledger rows, step lines, chips; buttons at 14px/600, rail at 14.5px."
+      },
+      "band-label": {
+        "displayName": "Band Label",
+        "purpose": "Uppercase role title and EMP number on the credential band, and the strip tag. Uppercase lives only here."
+      },
+      "numeral": {
+        "displayName": "Numeral",
+        "purpose": "Counts, D-NNN and EMP-NNN numbers, times and durations; always tabular."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Skill slugs, model ids, slash commands, code."
+      },
+      "logo": {
+        "displayName": "Logo",
+        "purpose": "Lowercase dude wordmark: 850, 26px, wdth 125%, -0.04em, line-height 1."
+      }
+    },
+    "shadows": [
+      {
+        "name": "pinned",
+        "value": "0 1px 2px rgb(20 22 27 / 0.06), 0 6px 18px rgb(20 22 27 / 0.06)",
+        "purpose": "Badges, role cards, slips, issue panel, settings panels, composer at rest."
+      },
+      {
+        "name": "lifted",
+        "value": "0 2px 4px rgb(20 22 27 / 0.08), 0 14px 32px rgb(20 22 27 / 0.1)",
+        "purpose": "Badge and role-card hover; slash-command menu."
+      },
+      {
+        "name": "drawer",
+        "value": "-10px 0 40px rgb(20 22 27 / 0.18)",
+        "purpose": "Details drawer below 1180px."
+      },
+      {
+        "name": "needs-inset",
+        "value": "inset 0 0 0 1px rgb(20 22 27 / 0.25)",
+        "purpose": "Edge on striped needs-you marks."
+      }
+    ],
+    "textures": [
+      {
+        "name": "needs-stripes",
+        "value": "repeating-linear-gradient(135deg, #f2b33d 0 9px, #f6c766 9px 18px)",
+        "purpose": "Hard-stop hazard stripes for needs-you marks and strips; the only gradient in the system."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "The one easing for every transition and the issued-badge moment."
+      },
+      {
+        "name": "state",
+        "value": "0.15s",
+        "purpose": "Colour, border and press transitions."
+      },
+      {
+        "name": "lift",
+        "value": "0.25s",
+        "purpose": "Badge and role-card hover lift."
+      },
+      {
+        "name": "breathe",
+        "value": "1.8s ease-in-out infinite, opacity to 0.45",
+        "purpose": "Working status mark."
+      },
+      {
+        "name": "caret",
+        "value": "0.9s infinite",
+        "purpose": "Streaming reply caret in the role colour."
+      },
+      {
+        "name": "spin",
+        "value": "0.9s linear infinite",
+        "purpose": "Loader icon."
+      },
+      {
+        "name": "issued-band",
+        "value": "0.8s, scaleX 0 to 1 from left",
+        "purpose": "Fresh badge: chat header band sweeps in."
+      },
+      {
+        "name": "issued-stamp",
+        "value": "0.55s, 0.3s delay, from scale 1.7 rotate -9deg blur 3px",
+        "purpose": "Fresh badge: monogram stamps down."
+      },
+      {
+        "name": "issued-rise",
+        "value": "0.6s, 0.55s delay, from translateY 10px",
+        "purpose": "Fresh badge: intro rises."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce disables all animation and transition",
+        "purpose": "Accessibility floor."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "board-narrow",
+        "value": "1280px"
+      },
+      {
+        "name": "details-drawer",
+        "value": "1180px"
+      },
+      {
+        "name": "board-single-column",
+        "value": "1100px"
+      },
+      {
+        "name": "hire-stack",
+        "value": "900px"
+      },
+      {
+        "name": "mobile-rail-bar",
+        "value": "760px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one ink action per row: Allow, Hire, Issue badge, Answer.",
+      "html": "<button class=\"ds-btn-primary\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><line x1=\"19\" x2=\"19\" y1=\"8\" y2=\"14\"/><line x1=\"22\" x2=\"16\" y1=\"11\" y2=\"11\"/></svg> Hire an employee</button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:0 15px;border-radius:9px;border:1px solid var(--line-strong,#c3cad6);background:var(--panel,#fff);color:var(--ink,#14161b);font-family:\"Archivo Variable\", ui-sans-serif, system-ui, sans-serif;font-weight:600;font-size:14px;white-space:nowrap;cursor:pointer;transition:background .15s,border-color .15s,transform .15s cubic-bezier(0.16, 1, 0.3, 1);background:var(--ink,#14161b);border-color:var(--ink,#14161b);color:#fff}.ds-btn-primary:hover{background:#2a2e38}.ds-btn-primary:active{transform:translateY(1px)}.ds-btn-primary:focus-visible{outline:2px solid var(--ink,#14161b);outline-offset:2px;}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "White stock with a strong hairline; Always allow, Check models.",
+      "html": "<button class=\"ds-btn-secondary\">Always allow</button>",
+      "css": ".ds-btn-secondary{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:0 15px;border-radius:9px;border:1px solid var(--line-strong,#c3cad6);background:var(--panel,#fff);color:var(--ink,#14161b);font-family:\"Archivo Variable\", ui-sans-serif, system-ui, sans-serif;font-weight:600;font-size:14px;white-space:nowrap;cursor:pointer;transition:background .15s,border-color .15s,transform .15s cubic-bezier(0.16, 1, 0.3, 1);}.ds-btn-secondary:hover{border-color:var(--ink,#14161b)}.ds-btn-secondary:active{transform:translateY(1px)}.ds-btn-secondary:focus-visible{outline:2px solid var(--ink,#14161b);outline-offset:2px;}"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Declining actions, set apart at the end of the row: Don't allow, Cancel.",
+      "html": "<button class=\"ds-btn-quiet\">Don't allow</button>",
+      "css": ".ds-btn-quiet{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:0 15px;border-radius:9px;border:1px solid var(--line-strong,#c3cad6);background:var(--panel,#fff);color:var(--ink,#14161b);font-family:\"Archivo Variable\", ui-sans-serif, system-ui, sans-serif;font-weight:600;font-size:14px;white-space:nowrap;cursor:pointer;transition:background .15s,border-color .15s,transform .15s cubic-bezier(0.16, 1, 0.3, 1);background:transparent;border-color:transparent;color:var(--muted,#545b69)}.ds-btn-quiet:hover{background:var(--sunk,#e4e8ee);color:var(--ink,#14161b)}.ds-btn-quiet:focus-visible{outline:2px solid var(--ink,#14161b);outline-offset:2px;}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Labelled field; border turns ink on focus, no glow.",
+      "html": "<label class=\"ds-field\"><span>Name</span><input class=\"ds-input\" placeholder=\"Same as the workspace\"></label>",
+      "css": ".ds-field{display:grid;gap:5px;font-family:\"Archivo Variable\", ui-sans-serif, system-ui, sans-serif;font-size:13px;font-weight:650;color:var(--ink,#14161b);width:280px}.ds-input{height:40px;border:1.5px solid var(--line,#d9dee7);border-radius:9px;background:var(--panel,#fff);padding:0 12px;font:inherit;font-weight:400;font-size:15px;color:inherit}.ds-input::placeholder{color:var(--faint,#6a7282)}.ds-input:focus{outline:none;border-color:var(--ink,#14161b)}"
+    },
+    {
+      "name": "Ink Rail Navigation",
+      "kind": "nav",
+      "refersTo": "rail-item",
+      "description": "Solid ink rail with current item, amber needs count and a roster row.",
+      "html": "<nav class=\"ds-rail\"><div class=\"ds-logo\">dude<span class=\"ds-conn\"></span></div><button class=\"ds-rail-item\" aria-current=\"true\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect width=\"7\" height=\"7\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"7\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"7\" x=\"14\" y=\"14\" rx=\"1\"/><rect width=\"7\" height=\"7\" x=\"3\" y=\"14\" rx=\"1\"/></svg> Team board</button><button class=\"ds-rail-item\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><polyline points=\"22 12 16 12 14 15 10 15 8 12 2 12\"/><path d=\"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z\"/></svg> Needs you <span class=\"ds-count\">2</span></button><div class=\"ds-rail-label\">Employees</div><button class=\"ds-rail-item ds-roster\"><span class=\"ds-swatch\" style=\"--role:#c8402b\"></span><span class=\"ds-rt\"><b>Maya</b><small>Marketing Manager</small></span><span class=\"ds-mark-needs\"></span></button></nav>",
+      "css": ".ds-rail{background:var(--ink,#14161b);color:#eef1f6;display:flex;flex-direction:column;gap:2px;padding:20px 12px 16px;width:252px;font-family:\"Archivo Variable\", ui-sans-serif, system-ui, sans-serif}.ds-logo{display:flex;gap:8px;padding:0 10px 22px;font-size:26px;font-weight:850;font-stretch:125%;letter-spacing:-.04em;line-height:1}.ds-conn{width:7px;height:7px;border-radius:50%;background:#3ccf8e;margin-top:4px}.ds-rail-item{width:100%;display:flex;align-items:center;gap:10px;padding:8px 10px;border:0;border-radius:8px;background:transparent;color:#b9c0cc;text-align:left;font:inherit;font-size:14.5px;cursor:pointer}.ds-rail-item:hover{background:#20242c;color:#fff}.ds-rail-item[aria-current=\"true\"]{background:#2a2e38;color:#fff}.ds-rail-item:focus-visible{outline:2px solid #fff;outline-offset:2px}.ds-count{margin-left:auto;display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:#f2b33d;color:#14161b;font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums}.ds-rail-label{margin:22px 10px 6px;font-size:12px;font-weight:600;color:#8f97a6}.ds-roster{color:#d5dae3;padding:7px 10px}.ds-swatch{width:6px;height:28px;border-radius:3px;background:var(--role);flex:none}.ds-rt{display:grid;flex:1}.ds-rt b{font-weight:650;color:#fff}.ds-rt small{font-size:12.5px;color:#9aa2b1}.ds-mark-needs{width:12px;height:12px;border-radius:3px;background:repeating-linear-gradient(135deg, #f2b33d 0 9px, #f6c766 9px 18px);box-shadow:inset 0 0 0 1px rgb(20 22 27 / .25)}"
+    },
+    {
+      "name": "Model Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Monospace pill for picking a model; ink fill when chosen.",
+      "html": "<div class=\"ds-chips\"><button class=\"ds-chip ds-chip-active\">claude-sonnet</button><button class=\"ds-chip\">gpt-5</button><span class=\"ds-pill-ok\">Connected</span></div>",
+      "css": ".ds-chips{display:flex;gap:6px;align-items:center;font-family:\"Archivo Variable\", ui-sans-serif, system-ui, sans-serif}.ds-chip{border:1px solid var(--line,#d9dee7);background:var(--bg,#eef1f5);border-radius:999px;padding:3px 10px;font-size:12.5px;font-family:ui-monospace,\"Cascadia Code\",Menlo,Consolas,monospace;color:var(--ink,#14161b);cursor:pointer}.ds-chip:hover{border-color:var(--ink,#14161b)}.ds-chip:focus-visible{outline:2px solid var(--ink,#14161b);outline-offset:2px;}.ds-chip-active{background:var(--ink,#14161b);color:#fff;border-color:var(--ink,#14161b)}.ds-pill-ok{font-size:12px;font-weight:600;padding:2px 10px;border-radius:999px;background:#dcf1e7;color:#0b7a55}"
+    },
+    {
+      "name": "Employee Badge",
+      "kind": "card",
+      "refersTo": "badge-card",
+      "description": "Signature credential: flat role band with EMP number, wide name, status strip.",
+      "html": "<button class=\"ds-badge\" style=\"--role:#5b3ac0\"><span class=\"ds-band\"><span>Content Creator</span><span class=\"ds-no\">EMP-001</span></span><span class=\"ds-body\"><span class=\"ds-avatar\">L</span><span class=\"ds-id\"><span class=\"ds-name\">Leo</span><span class=\"ds-role\">Writes and repurposes content in the brand's voice.</span></span></span><span class=\"ds-strip\"><span class=\"ds-strip-text\">Wants to run \"weekly-recap\" every Monday</span><span class=\"ds-tag\">Needs you</span></span></button>",
+      "css": ".ds-badge{width:320px;display:flex;flex-direction:column;text-align:left;padding:0;border:0;background:var(--panel,#fff);border-radius:14px;overflow:hidden;box-shadow:0 1px 2px rgb(20 22 27 / 0.06), 0 6px 18px rgb(20 22 27 / 0.06);font-family:\"Archivo Variable\", ui-sans-serif, system-ui, sans-serif;color:var(--ink,#14161b);cursor:pointer;transition:transform .25s cubic-bezier(0.16, 1, 0.3, 1),box-shadow .25s cubic-bezier(0.16, 1, 0.3, 1)}.ds-badge:hover{transform:translateY(-3px);box-shadow:0 2px 4px rgb(20 22 27 / 0.08), 0 14px 32px rgb(20 22 27 / 0.1)}.ds-badge:focus-visible{outline:2px solid var(--ink,#14161b);outline-offset:2px;}.ds-band{display:flex;justify-content:space-between;gap:10px;padding:10px 16px;background:var(--role);color:#fff;font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase}.ds-no{opacity:.92;letter-spacing:.04em;font-variant-numeric:tabular-nums}.ds-body{display:flex;align-items:center;gap:14px;padding:18px 16px 16px}.ds-avatar{display:inline-grid;place-items:center;width:52px;height:52px;border-radius:10px;background:var(--role);color:#fff;font-weight:800;font-stretch:115%;font-size:24px;flex:none}.ds-id{display:grid}.ds-name{font-size:24px;font-weight:800;font-stretch:118%;letter-spacing:-.025em;line-height:1.1}.ds-role{font-size:13.5px;color:var(--muted,#545b69);margin-top:4px;line-height:1.35}.ds-strip{margin:0 12px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:9px;min-height:42px;font-size:13.5px;font-weight:600;background:repeating-linear-gradient(135deg, #f2b33d 0 9px, #f6c766 9px 18px);color:var(--ink,#14161b)}.ds-strip-text{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ds-tag{flex:none;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;background:var(--ink,#14161b);color:#f2b33d;padding:2px 8px;border-radius:5px}"
+    },
+    {
+      "name": "Approval Slip",
+      "kind": "card",
+      "refersTo": "slip",
+      "description": "Needs-you request with Allow, Always allow, and Don't allow set apart.",
+      "html": "<article class=\"ds-slip\" style=\"--role:#c8402b\"><header class=\"ds-slip-head\"><span class=\"ds-slip-mark\"></span><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z\"/><path d=\"M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3\"/><path d=\"M12 17h.01\"/></svg><span class=\"ds-who\">Maya · Marketing Manager</span><time>05:10 PM</time></header><p class=\"ds-slip-title\">Wants to run \"weekly-recap\" every Monday at 9:00</p><div class=\"ds-actions\"><button class=\"ds-a ds-a-primary\">Allow</button><button class=\"ds-a\">Always allow</button><button class=\"ds-a ds-a-quiet\">Don't allow</button></div></article>",
+      "css": ".ds-slip{width:340px;background:var(--panel,#fff);border:1px solid var(--line,#d9dee7);border-radius:12px;overflow:hidden;box-shadow:0 1px 2px rgb(20 22 27 / 0.06), 0 6px 18px rgb(20 22 27 / 0.06);font-family:\"Archivo Variable\", ui-sans-serif, system-ui, sans-serif;color:var(--ink,#14161b)}.ds-slip-head{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--role);color:#fff;font-size:12.5px;font-weight:650}.ds-slip-mark{width:12px;height:12px;border-radius:3px;background:repeating-linear-gradient(135deg, #f2b33d 0 9px, #f6c766 9px 18px);box-shadow:0 0 0 1px rgb(255 255 255 / .5);flex:none}.ds-who{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ds-slip-head time{opacity:.9;font-weight:500;font-variant-numeric:tabular-nums}.ds-slip-title{margin:0;padding:12px 14px 4px;font-weight:650;line-height:1.4;font-size:15px}.ds-actions{display:flex;gap:8px;padding:12px 14px 14px}.ds-a{display:inline-flex;align-items:center;min-height:38px;padding:0 15px;border-radius:9px;border:1px solid var(--line-strong,#c3cad6);background:#fff;color:inherit;font:inherit;font-weight:600;font-size:14px;cursor:pointer}.ds-a:hover{border-color:var(--ink,#14161b)}.ds-a:focus-visible{outline:2px solid var(--ink,#14161b);outline-offset:2px;}.ds-a-primary{background:var(--ink,#14161b);border-color:var(--ink,#14161b);color:#fff}.ds-a-primary:hover{background:#2a2e38}.ds-a-quiet{margin-left:auto;background:transparent;border-color:transparent;color:var(--muted,#545b69)}.ds-a-quiet:hover{background:var(--sunk,#e4e8ee);color:var(--ink,#14161b);border-color:transparent}"
+    },
+    {
+      "name": "Status Marks",
+      "kind": "custom",
+      "refersTo": "strip-working",
+      "description": "State by form: solid breathing working, striped needs-you, outline idle.",
+      "html": "<div class=\"ds-marks\"><span class=\"ds-m ds-working\"></span>Working<span class=\"ds-m ds-needs\"></span>Needs you<span class=\"ds-m ds-idle\"></span>Idle</div>",
+      "css": ".ds-marks{display:flex;align-items:center;gap:8px;font-family:\"Archivo Variable\", ui-sans-serif, system-ui, sans-serif;font-size:13px;color:var(--muted,#545b69)}.ds-m{display:inline-block;width:16px;height:16px;border-radius:4px;flex:none;margin-left:10px}.ds-working{background:#0b7a55;animation:ds-breathe 1.8s ease-in-out infinite}.ds-needs{background:repeating-linear-gradient(135deg, #f2b33d 0 9px, #f6c766 9px 18px);box-shadow:inset 0 0 0 1px rgb(20 22 27 / .25)}.ds-idle{border:2px solid currentColor;border-radius:50%;opacity:.6}@keyframes ds-breathe{50%{opacity:.45}}@media (prefers-reduced-motion:reduce){.ds-working{animation:none}}"
+    },
+    {
+      "name": "Composer",
+      "kind": "input",
+      "refersTo": "composer",
+      "description": "Brief an employee; ink border on focus, ink send square.",
+      "html": "<div class=\"ds-composer\"><textarea rows=\"1\" placeholder=\"Brief Leo, or type / for a skill\" aria-label=\"Message\"></textarea><button class=\"ds-send\" aria-label=\"Send\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m5 12 7-7 7 7\"/><path d=\"M12 19V5\"/></svg></button></div>",
+      "css": ".ds-composer{width:520px;display:flex;gap:8px;align-items:flex-end;background:var(--panel,#fff);border:1.5px solid var(--line-strong,#c3cad6);border-radius:14px;padding:8px 8px 8px 16px;box-shadow:0 1px 2px rgb(20 22 27 / 0.06), 0 6px 18px rgb(20 22 27 / 0.06);transition:border-color .15s;font-family:\"Archivo Variable\", ui-sans-serif, system-ui, sans-serif}.ds-composer:focus-within{border-color:var(--ink,#14161b)}.ds-composer textarea{flex:1;border:0;outline:0;resize:none;background:transparent;font:inherit;font-size:15px;padding:6px 0;line-height:1.45;color:var(--ink,#14161b)}.ds-composer textarea::placeholder{color:var(--faint,#6a7282)}.ds-send{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;border:0;background:var(--ink,#14161b);color:#fff;cursor:pointer}.ds-send:focus-visible{outline:2px solid var(--ink,#14161b);outline-offset:2px;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Badge Board",
+    "overview": "Every AI employee is issued a credential: a white badge with a flat role-colour band printed across the top, a heavy wide name, an employee number, and a live status strip along the bottom. The app is the board those badges hang on. Credential-stock grey is the wall, white is the badge stock, the left rail is solid ink, and the only loud colour that is not a role is needs-you amber, which appears as hard diagonal hazard stripes wherever the owner is wanted.\n\nThe system is light by design: owners check in on their staff at a desk, by day. Density is moderate and scannable, built for a glance that answers three questions: who is working, what needs me, what got done. Numbers are part of the material, not decoration: employees are EMP-001, EMP-002 in hiring order; deliverables are D-001 onward; every count, time and duration is set in tabular figures and right-aligned so columns read like a time card.\n\nThe world explicitly rejects the neutral sidebar-of-agents chat app with a single accent colour. Colour here is committed and flat, one hue per role, and state is shown by form as well as colour.",
+    "keyCharacteristics": [
+      "Flat, committed role bands carrying white text, never tinted or graded",
+      "State by form: solid working, striped needs-you, outline idle",
+      "Archivo variable, wide and heavy for names and headings, normal width for UI",
+      "Sequential employee and deliverable numbers in tabular figures",
+      "Ink rail, credential-grey ground, white badge stock, soft ambient lift on badges",
+      "Destructive or declining actions set apart, at the far end of the action row"
+    ],
+    "rules": [
+      {
+        "name": "The Amber Means You Rule",
+        "body": "Amber appears only where the owner is wanted or where the owner currently is. It is never decoration and never a role colour.",
+        "section": "colors"
+      },
+      {
+        "name": "The Flat Band Rule",
+        "body": "Role colours are applied as flat fills only, always with white text. No tints, no gradients, no role-coloured body text except the ledger's name column at 650 weight.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Role Variable Rule",
+        "body": "An employee's colour reaches every element through one `--role` property set on that employee's container; components never hard-code a role hex.",
+        "section": "colors"
+      },
+      {
+        "name": "The Wide Name Rule",
+        "body": "Width and weight above 700 are reserved for names, page headings and the wordmark. Controls, lists and prose stay at normal width.",
+        "section": "typography"
+      },
+      {
+        "name": "The Time Card Rule",
+        "body": "Every number, count, time and duration uses tabular figures. Durations and times sit right-aligned at the row's end.",
+        "section": "typography"
+      },
+      {
+        "name": "The Printed Band Rule",
+        "body": "Uppercase tracking belongs to the credential band and the strip tag only. Never use it as a small label above a heading.",
+        "section": "typography"
+      },
+      {
+        "name": "The Needs-First Rule",
+        "body": "When the layout collapses, anything waiting on the owner moves directly under the page heading, ahead of the badges.",
+        "section": "layout"
+      },
+      {
+        "name": "The Pinned Card Rule",
+        "body": "Only things that represent a person or a request (badges, role cards, slips) and the composer carry shadow. Structure (panels, lists, tabs) is drawn with hairlines.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do set each employee's colour once through the `--role` property and let band, avatar, swatch, slip head, step bar and ledger name inherit it.",
+      "Do show status by form as well as colour: solid for working, hazard stripes for needs-you, outline for idle.",
+      "Do number employees EMP-NNN in hiring order and deliverables D-NNN in save order, in tabular figures.",
+      "Do right-align running times, durations and timestamps at the end of their row.",
+      "Do make the primary action ink, and put the declining action (Don't allow, Cancel) last as a quiet button pushed to the far end.",
+      "Do use Lucide line icons at 14px to 18px, with `aria-hidden` when a text label is present.",
+      "Do move anything that needs the owner directly under the heading when the layout collapses.",
+      "Do keep faint text on white badge stock; on the credential ground use muted text."
+    ],
+    "donts": [
+      "Don't build the neutral sidebar-of-agents chat app with one accent colour; the board of role-coloured badges comes first.",
+      "Don't use amber for decoration, emphasis or a role; it means the owner is needed or is here.",
+      "Don't tint, fade or gradient a role colour. The only gradient in the system is the hard-stop needs-you stripe.",
+      "Don't use a role colour that cannot carry white text at 4.5:1.",
+      "Don't stretch or weight UI text like a name; wide and heavy is for names, headings and the wordmark.",
+      "Don't put small uppercase labels above headings; uppercase belongs to the credential band and the strip tag.",
+      "Don't colour Don't allow red; declining is quiet, destructive is red, and only removal in settings is destructive.",
+      "Don't add new choreographed motion; the issued badge is the one authored moment.",
+      "Don't ship a dark theme by default; the app is light by design."
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "dude",
+  "private": true,
+  "description": "Open-source AI employees you run with your own keys.",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=22.13" },
+  "packageManager": "pnpm@8.15.9",
+  "scripts": {
+    "build": "turbo build",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "dude": "tsx --conditions=dude-source apps/cli/src/index.ts",
+    "demo": "pnpm --filter @dude/web build && pnpm --filter @dude/server demo"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.1",
+    "tsx": "4.20.6",
+    "turbo": "2.5.8",
+    "typescript": "5.9.3"
+  }
+}

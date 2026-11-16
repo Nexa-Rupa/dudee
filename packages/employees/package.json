@@ -1,0 +1,19 @@
+{
+  "name": "@dude/employees",
+  "version": "0.1.0",
+  "description": "Open-source employee packs for dude: marketing, content, calling, research.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "dude-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "packs"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

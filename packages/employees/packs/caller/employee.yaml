@@ -1,0 +1,11 @@
+id: caller
+title: Calling Agent
+defaultName: Riya
+description: >
+  Makes and follows up on phone calls: lead qualification, appointment booking and
+  reminders, renewal and feedback calls. Uses your own Vapi account for the live voice.
+tools: [web, files, phone]
+requires:
+  env: [VAPI_API_KEY, VAPI_PHONE_NUMBER_ID, VAPI_ASSISTANT_ID]
+approvals:
+  phone_call: ask

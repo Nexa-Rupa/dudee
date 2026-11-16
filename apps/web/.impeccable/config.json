@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "archivo",
+        "createdAt": "2026-11-16T09:47:19.009Z",
+        "reason": "Claude: same face, lowercase match in the Google Fonts URL of decision sketches"
+      }
+    ]
+  }
+}
