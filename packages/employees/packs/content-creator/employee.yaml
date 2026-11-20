@@ -4,7 +4,7 @@ defaultName: Leo
 description: >
   Writes and repurposes content in the brand's voice: blog posts, social posts and threads,
   short-video scripts, newsletters and a content calendar.
-tools: [web, files, routines, media]
+tools: [web, files, routines, media, video]
 routines:
   - id: weekly-content-calendar
     cron: "0 10 * * 5"

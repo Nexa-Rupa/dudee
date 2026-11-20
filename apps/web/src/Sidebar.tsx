@@ -1,8 +1,8 @@
-import { Inbox, LayoutGrid, Settings as SettingsIcon, UserPlus, Plug } from "lucide-react";
+import { Inbox, LayoutGrid, Settings as SettingsIcon, UserPlus, Plug, Share2 } from "lucide-react";
 import type { AppState } from "./api";
 import { STATUS_LABEL, StatusMark, roleStyle, statusOf } from "./ui";
 
-export type View = { kind: "board" } | { kind: "employee"; id: string } | { kind: "hire" } | { kind: "settings" };
+export type View = { kind: "board" } | { kind: "employee"; id: string } | { kind: "hire" } | { kind: "settings" } | { kind: "connections" };
 
 export function Sidebar(props: { state: AppState; view: View; go: (v: View) => void; connected: boolean }) {
   const { state, view } = props;
@@ -37,6 +37,11 @@ export function Sidebar(props: { state: AppState; view: View; go: (v: View) => v
             ) : (
               <span className="rail-zero">0</span>
             )}
+          </button>
+        </li>
+        <li>
+          <button aria-current={view.kind === "connections"} onClick={() => props.go({ kind: "connections" })}>
+            <Share2 size={17} aria-hidden /> Connections
           </button>
         </li>
         <li>

@@ -1,0 +1,19 @@
+id: social-media-manager
+title: Social Media Manager
+defaultName: Maya
+description: >
+  Runs your social accounts every day: plans the angle, writes the post, makes the image or a
+  short video herself (Remotion or HyperFrames), signs in and publishes, then logs the link.
+tools: [web, files, routines, media, video, social, browser]
+approvals:
+  social_record_post: auto
+requires:
+  env: []
+routines:
+  - id: weekly-social-review
+    cron: "0 17 * * 5"
+    enabled: false
+    prompt: >
+      Review this week's posts with social_accounts (recent posts) and your browser: note which got the most
+      replies or views, save one lesson per account with memory_save, and write next week's topic ideas to
+      plans/next-week.md.

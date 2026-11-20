@@ -12,6 +12,9 @@ import { Store } from "./store.js";
 import { ALWAYS_ON, TOOL_GROUPS } from "./tools/builtin.js";
 import { browserPolicy, browserServer, changesScreen } from "./tools/browser.js";
 import { hireDir, loadConfig } from "./workspace.js";
+import { Vault } from "./vault.js";
+import { Composio, composioKey, composioPolicy } from "./composio.js";
+import type { McpSource } from "./mcp.js";
 import type {
   ApprovalDecision,
   ApprovalHandler,
@@ -63,6 +66,12 @@ export class Runtime {
   readonly config: DudeConfig;
   readonly packs: Map<string, EmployeePack>;
   private mcp: McpHub;
+  /** Saved logins for social accounts and sites, encrypted on disk. */
+  readonly vault: Vault;
+  /** Connected apps (OAuth) through Composio. */
+  readonly composio: Composio;
+  /** Until when each employee may publish an approved post without further prompts. */
+  private postingWindows = new Map<string, number>();
   private listeners = new Set<(e: RuntimeEvent) => void>();
   private queues = new Map<string, Promise<unknown>>();
   /** Latest browser screenshot per employee, for the Screen panel. */
@@ -80,6 +89,8 @@ export class Runtime {
     this.reloadSkills();
     this.store = new Store(path.join(home, "dude.db"));
     this.mcp = new McpHub(this.config.mcpServers);
+    this.vault = new Vault(home);
+    this.composio = new Composio(home);
   }
 
   // ── events ───────────────────────────────────────────────────────────────
@@ -179,6 +190,7 @@ export class Runtime {
     if (!hire) throw new Error(`No employee named ${ref}`);
     await this.mcp.closeKey(`browser:${hire.id}`);
     this.store.removeHire(hire.id);
+    for (const a of this.store.socialAccounts()) if (a.hireId === hire.id) this.store.saveSocialAccount({ ...a, hireId: null });
     this.screens.delete(hire.id);
     // On Windows the browser can hold its profile for a moment after closing; retry briefly.
     try {
@@ -315,7 +327,7 @@ export class Runtime {
               kind: "tool",
               tool: part.toolName,
               input: part.input,
-              output: clip(part.output),
+              output: clip(this.vault.redact(part.output)),
               ms: Date.now() - (started.get(part.toolCallId) ?? Date.now()),
             });
             this.emit({ type: "status", hireId: hire.id, status: "working" });
@@ -433,20 +445,10 @@ export class Runtime {
       for (const d of list) defs.set(d.name, d);
     }
     const hireId = ctx.hire.id;
-    const extra = ctx.pack.tools.includes("browser") && this.opts.browser !== false
-      ? [
-          {
-            name: "browser",
-            key: `browser:${hireId}`,
-            config: browserServer(hireDir(this.home, hireId)),
-            bareNames: true,
-            policy: browserPolicy,
-            after: (toolName: string, client: any) => {
-              if (changesScreen(toolName)) void this.captureScreen(hireId, client);
-            },
-          },
-        ]
-      : [];
+    const extra: McpSource[] = [];
+    if (this.hasBrowser(ctx.pack)) extra.push(this.browserSource(hireId));
+    const apps = await this.composioSource(ctx.hire);
+    if (apps) extra.push(apps);
     const mcpTools = await this.mcp.toolsFor(
       ctx.hire,
       (server, err) =>
@@ -473,10 +475,16 @@ export class Runtime {
     return set;
   }
 
-  policyFor(ctx: ToolContext, def: ToolDef): Policy {
+  policyFor(ctx: ToolContext, def: ToolDef, input?: unknown): Policy {
     const configured = this.config.approvals[def.name] ?? ctx.pack.approvals[def.name];
     if (configured === "deny") return "deny";
     if (def.alwaysAsk) return "ask";
+    if (input !== undefined) {
+      const dynamic = def.dynamicPolicy?.(input as any, ctx);
+      if (dynamic) return dynamic;
+    }
+    // An approved post may be published without a prompt for every click it takes.
+    if (this.postingOpen(ctx.hire.id) && postingTool(def.name) && (def.defaultPolicy ?? "ask") !== "deny") return "auto";
     return (
       this.store.getPolicy(ctx.hire.id, def.name) ??
       configured ??
@@ -486,7 +494,7 @@ export class Runtime {
   }
 
   private async runTool(def: ToolDef, input: unknown, ctx: ToolContext): Promise<unknown> {
-    if (this.policyFor(ctx, def) === "ask") {
+    if (this.policyFor(ctx, def, input) === "ask") {
       const summary = def.summarize?.(input as any) ?? `${def.name} ${JSON.stringify(input).slice(0, 300)}`;
       let decision: ApprovalDecision = "deny";
       if (this.opts.approve) decision = await this.opts.approve({ hire: ctx.hire, tool: def.name, input, summary });
@@ -502,10 +510,84 @@ export class Runtime {
       }
     }
     try {
-      return await def.execute(input, ctx);
+      // Saved passwords never reach the model or the transcript, whatever a page echoes back.
+      return this.vault.redact(await def.execute(input, ctx));
     } catch (err) {
-      return { error: errorText(err) };
+      return { error: this.vault.redact(errorText(err)) };
     }
+  }
+
+  // ── browser, connected apps and posting ──────────────────────────────────
+  private hasBrowser(pack: EmployeePack) {
+    return pack.tools.includes("browser") && this.opts.browser !== false;
+  }
+
+  private browserSource(hireId: string): McpSource {
+    return {
+      name: "browser",
+      key: `browser:${hireId}`,
+      config: browserServer(hireDir(this.home, hireId)),
+      bareNames: true,
+      policy: browserPolicy,
+      after: (toolName: string, client: any) => {
+        if (changesScreen(toolName)) void this.captureScreen(hireId, client);
+      },
+    };
+  }
+
+  /** Call a tool on an employee's own browser from inside the runtime (vault_fill types secrets this way). */
+  async browserCall(hire: Hire, tool: string, args: Record<string, unknown>) {
+    const pack = this.packFor(hire);
+    if (!pack || !this.hasBrowser(pack)) throw new Error(`${hire.name} has no browser`);
+    const client = await this.mcp.client(this.browserSource(hire.id));
+    const res: any = await client.callTool({ name: tool, arguments: args });
+    if (changesScreen(tool)) void this.captureScreen(hire.id, client as any);
+    if (res?.isError) throw new Error(this.vault.redact(JSON.stringify(res.content ?? res).slice(0, 500)));
+    return this.vault.redact(res?.structuredContent ?? res?.content);
+  }
+
+  /** Composio's MCP endpoint as `apps__*` tools, when a key is set. Makes the session on first use. */
+  private async composioSource(hire: Hire): Promise<McpSource | null> {
+    if (!composioKey()) return null;
+    const allow = this.config.composioHires ?? [];
+    if (allow.length && !allow.includes(hire.id) && !allow.includes(hire.name)) return null;
+    let mcp = this.composio.cachedMcp();
+    if (!mcp) {
+      try {
+        await this.composio.session();
+        mcp = this.composio.cachedMcp();
+      } catch (err) {
+        this.record(hire.id, { kind: "notice", text: `Connected apps are unavailable: ${errorText(err)}` });
+        return null;
+      }
+    }
+    if (!mcp) return null;
+    return { name: "apps", key: `composio:${mcp.url}`, config: { url: mcp.url, headers: mcp.headers }, policy: composioPolicy };
+  }
+
+  /** Drop cached app connections (after the Composio key or session changes). */
+  async resetConnections() {
+    const mcp = this.composio.cachedMcp();
+    if (mcp) await this.mcp.closeKey(`composio:${mcp.url}`);
+    this.emit({ type: "connections-changed" });
+  }
+
+  openPostingWindow(hireId: string, ms: number) {
+    this.postingWindows.set(hireId, Date.now() + ms);
+  }
+
+  closePostingWindow(hireId: string) {
+    this.postingWindows.delete(hireId);
+  }
+
+  postingOpen(hireId: string) {
+    const until = this.postingWindows.get(hireId);
+    if (!until) return false;
+    if (Date.now() > until) {
+      this.postingWindows.delete(hireId);
+      return false;
+    }
+    return true;
   }
 
   /** Grab a screenshot after a browser step so front ends can show the employee's screen. */
@@ -532,6 +614,11 @@ export class Runtime {
     await this.mcp.close();
     this.store.close();
   }
+}
+
+/** Tools an employee needs to publish an approved post: its browser, the saved login, connected apps. */
+function postingTool(name: string) {
+  return name.startsWith("browser_") || name === "vault_fill" || name.startsWith("apps__");
 }
 
 function skillList(skills: SkillSpec[]) {

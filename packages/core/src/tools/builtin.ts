@@ -6,6 +6,8 @@ import type { ToolContext, ToolDef } from "../types.js";
 import { phoneTools } from "./phone.js";
 import { mediaTools } from "./media.js";
 import { shellTools } from "./shell.js";
+import { videoTools } from "./video.js";
+import { socialTools } from "../social.js";
 import { readSkillFile, renderSkill } from "../skills.js";
 
 const MAX_TEXT = 20_000;
@@ -301,6 +303,8 @@ export const TOOL_GROUPS: Record<string, ToolDef[]> = {
   phone: phoneTools,
   media: mediaTools,
   shell: shellTools,
+  video: videoTools,
+  social: socialTools,
 };
 
 /** Every employee gets these, whatever the pack lists. */

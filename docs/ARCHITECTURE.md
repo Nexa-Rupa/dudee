@@ -29,6 +29,11 @@
 | Media | `tools/media.ts` | fal.ai queue API: `generate_image` and `fal_run` (any model), results saved under `files/media/` |
 | Shell | `tools/shell.ts` | Opt-in `run_command` in the employee's files folder, for skill scripts; asks every time unless always-allowed |
 | Browser | `tools/browser.ts` | Packs listing `browser` get a Playwright MCP server per employee (own profile and output folder under `.dude/team/<id>/`). Browsing runs freely, clicking and typing ask, raw JS is off. After each step that changes the page the runtime takes a screenshot and emits a `screen` event |
+| Vault | `vault.ts` | AES-256-GCM logins in `.dude/vault.json` (key in `.dude/vault.key` or `DUDE_VAULT_KEY`), TOTP codes, and redaction of every tool result so saved secrets never reach the model or the transcript |
+| Connected apps | `composio.ts` | One Composio Tool Router Session per workspace; its MCP endpoint becomes `apps__*` tools for every employee (or `composioHires`); lookups auto, executes ask |
+| Social | `social.ts` | Social accounts, autopost plans (each a routine with source `autopost`), the post log, `social_publish_request` (one approval opens a 20-minute posting window for browser, vault and app tools) and `vault_fill` |
+| Video | `tools/video.ts` | `video_render`: Remotion specs through a shared studio in `.dude/studio/remotion`, or HyperFrames projects; `generate_voiceover` (ElevenLabs or OpenAI) |
+| Telegram | `packages/server/src/telegram.ts` | Long-polling bot: pairing codes, messages to employees, approval buttons, question replies, routine reports |
 | Server | `packages/server` | `node:http` on 127.0.0.1 with a per-run token: JSON API, one SSE stream of runtime events, approvals and questions held as cards until answered, routines scheduler, serves the built web app |
 | Web app | `apps/web` | React + Vite. Sidebar with live status, chat grouped into turns (request → steps → reply), live "Working for 12s · 3 steps" chip, approval and question cards, panel with Screen, Files, Memory, Routines, About |
 

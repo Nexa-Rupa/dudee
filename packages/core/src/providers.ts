@@ -119,6 +119,10 @@ export const MEDIA_PROVIDERS = [
     note: "Also set VAPI_PHONE_NUMBER_ID and VAPI_ASSISTANT_ID.",
   },
   {
+    id: "elevenlabs", name: "ElevenLabs (voiceovers)", keyEnv: "ELEVENLABS_API_KEY", keyUrl: "https://elevenlabs.io/app/settings/api-keys",
+    note: "Natural voiceovers for the videos employees make. Without it, OpenAI's text-to-speech is used if you have an OpenAI key.",
+  },
+  {
     id: "brave", name: "Brave Search", keyEnv: "BRAVE_API_KEY", keyUrl: "https://brave.com/search/api/",
     note: "Better web search than the free fallback.",
   },

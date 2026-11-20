@@ -85,6 +85,11 @@ export class McpHub {
     return entry;
   }
 
+  /** The connected client for a source (connecting if needed), for calls the runtime makes itself. */
+  async client(src: McpSource) {
+    return (await this.connect(src)).client;
+  }
+
   /** Close one connection (e.g. a fired employee's browser). */
   async closeKey(key: string) {
     const entry = this.clients.get(key);

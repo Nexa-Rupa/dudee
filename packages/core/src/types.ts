@@ -89,6 +89,10 @@ export interface DudeConfig {
   extraTools: string[];
   /** Company goals every employee works toward. */
   goals: string[];
+  /** Talk to your team from Telegram: chats allowed to message employees and answer approvals. */
+  telegram?: { allowedChats: number[]; defaultHire?: string | null; notify?: boolean };
+  /** Employees that get Composio connected apps; empty or missing = everyone. */
+  composioHires?: string[];
   /** Monthly spend limit for the whole team, in US dollars; null = no limit. */
   budgetUsd: number | null;
   /** Your own model prices (per million tokens) for models dude has no price for. */
@@ -113,6 +117,8 @@ export interface ToolDef<I = any> {
   defaultPolicy?: Policy;
   /** Always ask, even if the user chose "always allow" (calls, payments). */
   alwaysAsk?: boolean;
+  /** Decide from the actual input (e.g. an account set to post without asking). Undefined falls back to the usual order. */
+  dynamicPolicy?: (input: I, ctx: ToolContext) => Policy | undefined;
   summarize?: (input: I) => string;
   execute: (input: I, ctx: ToolContext) => Promise<unknown>;
 }
@@ -137,7 +143,9 @@ export type RuntimeEvent =
   | { type: "usage"; hireId: string; model: string; inputTokens: number; outputTokens: number }
   | { type: "screen"; hireId: string; mime: string; data: string; at: string }
   | { type: "team-changed" }
-  | { type: "routines-changed" };
+  | { type: "routines-changed" }
+  | { type: "social-changed" }
+  | { type: "connections-changed" };
 
 export interface ApprovalRequest {
   hire: Hire;

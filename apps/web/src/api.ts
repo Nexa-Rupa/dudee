@@ -151,6 +151,8 @@ export type ServerEvent =
   | { type: "team-changed" }
   | { type: "settings-changed" }
   | { type: "routines-changed" }
+  | { type: "connections-changed" }
+  | { type: "social-changed" }
   | { type: "approval"; approval: Approval }
   | { type: "approval-closed"; id: string }
   | { type: "question"; question: Question }

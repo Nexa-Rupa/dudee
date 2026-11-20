@@ -7,6 +7,7 @@ import { Details } from "./Details";
 import { HirePicker } from "./HireDialog";
 import { ModelsPanel, SettingsPage } from "./Settings";
 import { Sidebar, type View } from "./Sidebar";
+import { ConnectionsPage } from "./Connections";
 
 function remembered(): View {
   try {
@@ -27,6 +28,7 @@ export function App() {
   const [rows, setRows] = useState<Record<string, StoredRow[]>>({});
   const [screens, setScreens] = useState<Record<string, Screen>>({});
   const [version, setVersion] = useState(0);
+  const [connVersion, setConnVersion] = useState(0);
   const [showDetails, setShowDetails] = useState(() => window.innerWidth > 1180);
 
   const go = (v: View, tab?: "files") => {
@@ -90,6 +92,10 @@ export function App() {
             break;
           case "routines-changed":
             setVersion((v) => v + 1);
+            break;
+          case "connections-changed":
+          case "social-changed":
+            setConnVersion((v) => v + 1);
             break;
           case "approval":
             setState((s) => s && { ...s, approvals: [...s.approvals.filter((a) => a.id !== e.approval.id), e.approval] });
@@ -196,6 +202,8 @@ export function App() {
         />
       </div>
     );
+  } else if (view.kind === "connections") {
+    main = <ConnectionsPage version={connVersion} hires={hires.map((h) => ({ id: h.id, name: h.name }))} onHire={() => go({ kind: "hire" })} />;
   } else if (view.kind === "settings") {
     main = <SettingsPage onChanged={refresh} />;
   } else {

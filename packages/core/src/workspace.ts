@@ -52,6 +52,8 @@ export function loadConfig(home: string): DudeConfig {
     goals: raw.goals ?? [],
     budgetUsd: typeof raw.budgetUsd === "number" ? raw.budgetUsd : null,
     prices: { ...(raw.prices ?? {}) },
+    telegram: raw.telegram ? { allowedChats: (raw.telegram.allowedChats ?? []).map(Number), defaultHire: raw.telegram.defaultHire ?? null, notify: raw.telegram.notify ?? true } : undefined,
+    composioHires: raw.composioHires ?? [],
   };
 }
 

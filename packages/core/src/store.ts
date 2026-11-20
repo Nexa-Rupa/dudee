@@ -6,11 +6,12 @@ import { randomUUID } from "node:crypto";
 // "experimental" warning before it fires.
 const require = createRequire(import.meta.url);
 import type { Hire, Policy, Row, RoutineSpec, StoredRow, UsageRecord } from "./types.js";
+import type { SocialAccount, SocialPost } from "./social.js";
 
 export interface StoredRoutine extends RoutineSpec {
   hireId: string;
   enabled: boolean;
-  source: "pack" | "user";
+  source: "pack" | "user" | "autopost";
   lastRunAt: string | null;
 }
 
@@ -43,6 +44,10 @@ export class Store {
       CREATE TABLE IF NOT EXISTS usage (
         id TEXT PRIMARY KEY, hire_id TEXT NOT NULL, model TEXT NOT NULL,
         input_tokens INTEGER NOT NULL, output_tokens INTEGER NOT NULL, at TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS social_accounts (id TEXT PRIMARY KEY, body TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS social_posts (
+        id TEXT PRIMARY KEY, account_id TEXT NOT NULL, hire_id TEXT NOT NULL, at TEXT NOT NULL, body TEXT NOT NULL);
+      CREATE INDEX IF NOT EXISTS social_posts_at ON social_posts(at);
     `);
     // Columns added after the first release; older workspaces get them in place.
     this.addColumn("hires", "paused", "INTEGER NOT NULL DEFAULT 0");
@@ -176,6 +181,52 @@ export class Store {
     this.db
       .prepare("UPDATE routines SET last_run_at = ? WHERE hire_id = ? AND id = ?")
       .run(new Date().toISOString(), hireId, id);
+  }
+
+  // ── social accounts and posts ─────────────────────────────────────────
+  socialAccounts(): SocialAccount[] {
+    return (this.db.prepare("SELECT body FROM social_accounts ORDER BY id").all() as any[]).map((r) => JSON.parse(r.body));
+  }
+
+  socialAccount(id: string): SocialAccount | null {
+    const r = this.db.prepare("SELECT body FROM social_accounts WHERE id = ?").get(id) as any;
+    return r ? JSON.parse(r.body) : null;
+  }
+
+  saveSocialAccount(a: SocialAccount) {
+    this.db
+      .prepare("INSERT INTO social_accounts (id, body) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET body = excluded.body")
+      .run(a.id, JSON.stringify(a));
+  }
+
+  removeSocialAccount(id: string): boolean {
+    return Number(this.db.prepare("DELETE FROM social_accounts WHERE id = ?").run(id).changes) > 0;
+  }
+
+  addSocialPost(p: Pick<SocialPost, "accountId" | "hireId" | "text" | "media" | "status">): SocialPost {
+    const post: SocialPost = { id: randomUUID().slice(0, 8), at: new Date().toISOString(), url: null, error: null, ...p };
+    this.db
+      .prepare("INSERT INTO social_posts (id, account_id, hire_id, at, body) VALUES (?, ?, ?, ?, ?)")
+      .run(post.id, post.accountId, post.hireId, post.at, JSON.stringify(post));
+    return post;
+  }
+
+  updateSocialPost(id: string, patch: Partial<Pick<SocialPost, "status" | "url" | "error">>): boolean {
+    const r = this.db.prepare("SELECT body FROM social_posts WHERE id = ?").get(id) as any;
+    if (!r) return false;
+    const post = { ...JSON.parse(r.body), ...patch };
+    this.db.prepare("UPDATE social_posts SET body = ? WHERE id = ?").run(JSON.stringify(post), id);
+    return true;
+  }
+
+  socialPosts(opts: { accountId?: string; limit?: number } = {}): SocialPost[] {
+    const limit = opts.limit ?? 100;
+    const list = (
+      opts.accountId
+        ? this.db.prepare("SELECT body FROM social_posts WHERE account_id = ? ORDER BY at DESC LIMIT ?").all(opts.accountId, limit)
+        : this.db.prepare("SELECT body FROM social_posts ORDER BY at DESC LIMIT ?").all(limit)
+    ) as any[];
+    return list.map((r) => JSON.parse(r.body));
   }
 
   // ── usage ────────────────────────────────────────────────────────────────

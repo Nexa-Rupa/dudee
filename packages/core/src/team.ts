@@ -54,7 +54,7 @@ export function exportTeam(runtime: Runtime, opts: { withMemory?: boolean } = {}
       packId: h.packId,
       model: h.model,
       budgetUsd: h.budgetUsd,
-      routines: runtime.store.routines(h.id).map((r) => ({ id: r.id, cron: r.cron, prompt: r.prompt, enabled: r.enabled, source: r.source })),
+      routines: runtime.store.routines(h.id).filter((r) => r.source !== "autopost").map((r) => ({ id: r.id, cron: r.cron, prompt: r.prompt, enabled: r.enabled, source: r.source as "pack" | "user" })),
       allowed: runtime.store.policies(h.id).filter((p) => p.policy === "auto").map((p) => p.tool),
       memory: opts.withMemory ? runtime.memoryFor(h).read() || undefined : undefined,
     })),

@@ -140,6 +140,11 @@ Paste a key, press **Save and check**, and pick from the models your key can use
 - **Images and video.** The Content Creator makes visuals through [fal.ai](https://fal.ai) (Flux, Kling, Recraft and more).
 - **Phone calls.** The Calling Agent places consent-only calls through your own [Vapi](https://vapi.ai) account.
 - **Share a team.** Export your whole team to a file (never keys) and import it anywhere.
+- **Daily autopost.** Add a social account, pick a time, and the Social Media Manager writes, makes the image or video, signs in and publishes every day. See [docs/CONNECTIONS.md](docs/CONNECTIONS.md).
+- **Videos made in code.** Employees render their own MP4s with [Remotion](https://remotion.dev) (data-driven scenes, captions, voiceover) or [HyperFrames](https://hyperframes.heygen.com) (HTML + GSAP motion design), on your machine.
+- **500+ connected apps.** One [Composio](https://composio.dev) key and a click per app: Gmail, Slack, X, LinkedIn, Instagram, YouTube, Notion, HubSpot. OAuth in your own browser, no passwords.
+- **A vault for logins.** Social logins (and two-step codes) are encrypted on disk and typed straight into the employee's browser. The model never sees them; any tool output that echoes one is scrubbed.
+- **Telegram.** Message employees from your phone, approve posts with one tap, get what routines did.
 
 <br />
 
@@ -192,6 +197,7 @@ Codex models work with an OpenAI key. To use a ChatGPT or Claude subscription in
 |---|---|---|
 | **Marketing Manager** | Positioning, competitor watch, SEO, campaign plans | `/competitor-watch` `/seo-audit` `/campaign-plan` |
 | **Content Creator** | Blog posts, social packs, short-video scripts, visuals, content calendar | `/blog-post` `/social-pack` `/post-visuals` `/content-calendar` |
+| **Social Media Manager** | Posts every day to your accounts: copy, images, Remotion/HyperFrames videos, sign-in, publish, log | `/daily-autopost` `/remotion-video` `/hyperframes-video` |
 | **Calling Agent** | Lead qualification, appointment reminders, follow-up calls | `/lead-qualification` `/appointment-reminder` |
 | **Research Analyst** | Sourced briefs, competitor and prospect research | `/prospect-list` |
 
@@ -224,7 +230,7 @@ mcpServers:
     hires: [Maya]   # optional: only these employees
 ```
 
-Tools marked read-only run at once; the rest ask first.
+Tools marked read-only run at once; the rest ask first. You can also add app servers, connect Composio apps and pair Telegram from **Connections** in the web app.
 
 <br />
 
@@ -296,7 +302,10 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the pieces fit, and [do
 - [x] npm package and Docker image
 - [ ] A full computer per employee, with live view and take-over
 - [ ] A community registry for roles and skills
-- [ ] Chat connectors (Slack, Telegram, WhatsApp)
+- [x] Connected apps (Composio), a login vault and daily social autopost
+- [x] Telegram: chat with employees and approve from your phone
+- [ ] More chat connectors (Slack, WhatsApp)
+- [ ] App-event triggers (run an employee when a Gmail or Slack event arrives)
 
 ## Credits
 

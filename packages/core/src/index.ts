@@ -40,3 +40,22 @@ export {
   saveConfig,
   hireDir,
 } from "./workspace.js";
+export { Vault, totp, hotp, base32Decode, type Credential } from "./vault.js";
+export { Composio, CURATED_APPS, composioKey, composioPolicy, type AppCard, type ConnectedAccount } from "./composio.js";
+export {
+  PLATFORMS,
+  PLATFORM_LIST,
+  DEFAULT_PLAN,
+  normalizePlan,
+  planCron,
+  routineIdFor,
+  autopostPrompt,
+  slugId,
+  syncAutopost,
+  removeAutopost,
+  type Platform,
+  type SocialAccount,
+  type SocialPost,
+  type AutopostPlan,
+} from "./social.js";
+export { ensureRemotionStudio } from "./tools/video.js";

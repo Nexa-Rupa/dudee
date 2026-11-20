@@ -24,6 +24,8 @@ import {
   type RuntimeEvent,
   type RuntimeOptions,
 } from "@dude/core";
+import { TelegramBridge } from "./telegram.js";
+import { handleConnections } from "./connections.js";
 
 export interface ServerOptions {
   home: string;
@@ -40,6 +42,8 @@ export interface ServerOptions {
   scheduler?: boolean;
   /** Extra Host names accepted when listening beyond loopback ("*" for any). */
   allowedHosts?: string[];
+  /** Run the Telegram bridge when TELEGRAM_BOT_TOKEN is set. Default true; tests turn it off. */
+  telegram?: boolean;
   /** Demo mode: a scripted stand-in model answers; the app says so on every screen. */
   demo?: boolean;
   log?: (line: string) => void;
@@ -105,12 +109,14 @@ export async function startServer(opts: ServerOptions) {
         };
         approvals.set(card.id, card);
         broadcast({ type: "approval", approval: publicApproval(card) });
+        void telegram.notifyApproval(card).catch(() => {});
       }),
     ask: (hire, question) =>
       new Promise<string | null>((resolve) => {
         const card: PendingQuestion = { id: randomUUID(), hireId: hire.id, question, at: new Date().toISOString(), resolve };
         questions.set(card.id, card);
         broadcast({ type: "question", question: publicQuestion(card) });
+        void telegram.notifyQuestion(card).catch(() => {});
       }),
   });
 
@@ -136,6 +142,16 @@ export async function startServer(opts: ServerOptions) {
   const scheduler = opts.scheduler === false ? null : new Scheduler(runtime, log);
   scheduler?.start();
 
+  const telegram = new TelegramBridge(runtime, opts.home, {
+    approvals: () => [...approvals.values()].map((a) => ({ id: a.id, hireId: a.hireId, summary: a.summary })),
+    answerApproval: (id, d) => answerApproval(id, d),
+    answerQuestion: (id, a) => answerQuestion(id, a),
+    broadcast,
+    log,
+  });
+  if (opts.telegram !== false) telegram.start();
+  const conn = { runtime, home: opts.home, telegram, broadcast, log, send, readJson };
+
   const hireView = (h: Hire) => {
     const pack = runtime.packFor(h);
     return {
@@ -160,7 +176,10 @@ export async function startServer(opts: ServerOptions) {
 
   // Keys the web app may set: provider keys and base URLs, media keys, and a few tool settings.
   const settableKeys = () => {
-    const names = new Set<string>(["VAPI_PHONE_NUMBER_ID", "VAPI_ASSISTANT_ID", "TAVILY_API_KEY"]);
+    const names = new Set<string>([
+      "VAPI_PHONE_NUMBER_ID", "VAPI_ASSISTANT_ID", "TAVILY_API_KEY", "BRAVE_API_KEY",
+      "COMPOSIO_API_KEY", "ELEVENLABS_API_KEY", "TELEGRAM_BOT_TOKEN",
+    ]);
     for (const p of allProviders()) {
       if (p.keyEnv) names.add(p.keyEnv);
       if (p.baseURLEnv) names.add(p.baseURLEnv);
@@ -248,6 +267,7 @@ export async function startServer(opts: ServerOptions) {
       }
 
       if (parts[0] === "state" && method === "GET") return send(res, 200, state());
+      if (await handleConnections(conn, parts, method, url, req, res)) return;
 
       // ── models, keys and settings ─────────────────────────────────────────
       if (parts[0] === "providers" && !parts[1] && method === "GET") return send(res, 200, providersView());
@@ -268,7 +288,13 @@ export async function startServer(opts: ServerOptions) {
           if (!value) return send(res, 400, { error: "Empty value" });
           setSecret(opts.home, name, value);
         }
+        if (name === "COMPOSIO_API_KEY") {
+          await runtime.resetConnections();
+          runtime.composio.forgetSession();
+        }
+        if (name === "TELEGRAM_BOT_TOKEN" && opts.telegram !== false) await telegram.restart();
         broadcast({ type: "settings-changed" });
+        broadcast({ type: "connections-changed" });
         return send(res, 200, providersView());
       }
       if (parts[0] === "settings" && method === "GET") {
@@ -467,8 +493,10 @@ export async function startServer(opts: ServerOptions) {
     url,
     token,
     runtime,
+    telegram,
     async close() {
       scheduler?.stop();
+      await telegram.stop();
       for (const id of [...approvals.keys()]) answerApproval(id, "deny");
       for (const id of [...questions.keys()]) answerQuestion(id, null);
       for (const res of clients) res.end();

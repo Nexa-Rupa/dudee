@@ -43,7 +43,7 @@ import { randomBytes } from "node:crypto";
 // The published package carries the built web app in ./web next to ./dist; in the repo it comes from apps/web.
 const bundledWeb = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "web");
 const webDir = fs.existsSync(path.join(bundledWeb, "index.html")) ? bundledWeb : devWebDir;
-const VERSION = "2.0.0";
+const VERSION = "2.1.0";
 
 try {
   process.loadEnvFile(".env");
@@ -152,7 +152,7 @@ program
     console.log(green(`✓ Workspace ready at ${home} · model ${config.model}`));
     const p = getProvider(parseModelId(config.model).provider)!;
     if (!isConfigured(p)) console.log(yellow(`  ${p.name} needs a key: dudee keys set ${p.id}`));
-    console.log(`  Next: ${bold("dudee ui")} (web app) or ${bold("dudee hire content-creator")}`);
+    console.log(`  Next: ${bold("dudee ui")} (web app), ${bold("dudee hire content-creator")} or ${bold("dudee hire social-media-manager")}`);
   });
 
 /** Ask which provider to use, take its key (saved to .dude/secrets.env), and pick a model. */

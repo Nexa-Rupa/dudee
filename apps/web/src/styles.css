@@ -598,3 +598,11 @@ label.btn:focus-within { outline: 2px solid var(--ink); outline-offset: 2px; }
 
 a.btn { text-decoration: none; color: inherit; }
 a.btn.primary { color: #fff; }
+
+/* ── connections ───────────────────────────────────────── */
+.select { width: 100%; height: 40px; border: 1.5px solid var(--line); border-radius: 9px; background: var(--panel); padding: 0 10px; }
+.select:focus { outline: none; border-color: var(--ink); }
+.field textarea.goals { font-weight: 400; }
+.field .row { display: flex; gap: 8px; }
+.provider-body .provider-section { display: grid; gap: 12px; }
+.provider-section .sub-h { margin-top: 6px; }
