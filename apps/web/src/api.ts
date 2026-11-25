@@ -1,9 +1,9 @@
 // Types mirror @dude/core and @dude/server; kept local so the web bundle has no Node deps.
 
 export type Row =
-  | { kind: "message"; role: "user" | "assistant"; text: string; from?: string }
+  | { kind: "message"; role: "user" | "assistant"; text: string; from?: string; attachments?: string[]; added?: boolean }
   | { kind: "tool"; tool: string; input: unknown; output?: unknown; error?: string; ms: number }
-  | { kind: "approval"; tool: string; summary: string; decision: "allow" | "always" | "deny" }
+  | { kind: "approval"; tool: string; summary: string; decision: "allow" | "always" | "deny"; expired?: boolean }
   | { kind: "notice"; text: string };
 
 export interface StoredRow {
@@ -18,6 +18,8 @@ export interface Live {
   detail?: string;
   since: string;
   text: string;
+  /** What you added that they haven't read yet. */
+  pending?: string[];
 }
 
 export interface HireView {
@@ -131,8 +133,27 @@ export interface Routine {
   cron: string;
   prompt: string;
   enabled: boolean;
-  source: "pack" | "user";
+  source: "pack" | "user" | "autopost";
   lastRunAt: string | null;
+  model: string | null;
+  hookKey: string | null;
+}
+
+export interface RoutineRun {
+  id: string;
+  startedAt: string;
+  endedAt: string | null;
+  status: "running" | "done" | "failed" | "stopped" | "interrupted";
+  trigger: "schedule" | "manual" | "webhook";
+  summary: string | null;
+}
+
+export interface WorkItem {
+  id: string;
+  text: string;
+  status: "open" | "done";
+  createdAt: string;
+  doneAt: string | null;
 }
 
 export interface Screen {
@@ -145,6 +166,9 @@ export type ServerEvent =
   | { type: "hello" }
   | { type: "row"; hireId: string; row: StoredRow }
   | { type: "delta"; hireId: string; text: string }
+  | { type: "rewind"; hireId: string; text: string }
+  | { type: "added"; hireId: string; pending: string[] }
+  | { type: "work-changed"; hireId: string }
   | { type: "status"; hireId: string; status: Live["status"]; detail?: string }
   | { type: "usage"; hireId: string }
   | ({ type: "screen"; hireId: string } & Screen)
@@ -192,6 +216,31 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new ApiError(data?.error ?? `Request failed (${res.status})`, res.status);
   return data as T;
+}
+
+/** Put a file in an employee's uploads folder. Returns its path in their files. */
+export async function upload(hireId: string, file: File): Promise<string> {
+  const res = await fetch(`/api/hires/${hireId}/uploads?name=${encodeURIComponent(file.name || "pasted.png")}`, {
+    method: "POST",
+    headers: { "x-dude-token": token, "content-type": "application/octet-stream" },
+    body: file,
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new ApiError(data?.error ?? `Upload failed (${res.status})`, res.status);
+  return data.path as string;
+}
+
+/** A link to one of an employee's files, for pictures, players and downloads. */
+export function fileUrl(hireId: string, path: string, download = false) {
+  return `/api/hires/${hireId}/raw?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}${download ? "&download=1" : ""}`;
+}
+
+export function fileKind(path: string): "image" | "video" | "audio" | "pdf" | "other" {
+  const ext = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
+  if (["png", "jpg", "jpeg", "webp", "gif"].includes(ext)) return "image";
+  if (["mp4", "webm", "mov"].includes(ext)) return "video";
+  if (["mp3", "wav", "m4a"].includes(ext)) return "audio";
+  return ext === "pdf" ? "pdf" : "other";
 }
 
 export function subscribe(onEvent: (e: ServerEvent) => void, onStatus: (connected: boolean) => void) {

@@ -69,7 +69,12 @@ export function App() {
             });
             if (e.row.row.kind === "tool" || (e.row.row.kind === "message" && e.row.row.role === "assistant")) setVersion((v) => v + 1);
             break;
+          case "work-changed":
+            setVersion((v) => v + 1);
+            break;
           case "status":
+          case "rewind":
+          case "added":
           case "delta":
             setState((s) => {
               if (!s) return s;
@@ -78,10 +83,12 @@ export function App() {
                 hires: s.hires.map((h) => {
                   if (h.id !== e.hireId) return h;
                   if (e.type === "delta") return h.live ? { ...h, live: { ...h.live, text: h.live.text + e.text } } : h;
+                  if (e.type === "rewind") return h.live ? { ...h, live: { ...h.live, text: e.text } } : h;
+                  if (e.type === "added") return h.live ? { ...h, live: { ...h.live, pending: e.pending } } : h;
                   if (e.status === "idle") return { ...h, live: null };
                   return {
                     ...h,
-                    live: { status: e.status, detail: e.detail, since: h.live?.since ?? new Date().toISOString(), text: h.live?.text ?? "" },
+                    live: { status: e.status, detail: e.detail, since: h.live?.since ?? new Date().toISOString(), text: h.live?.text ?? "", pending: h.live?.pending },
                   };
                 }),
               };

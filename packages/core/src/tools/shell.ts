@@ -1,6 +1,7 @@
 import { exec } from "node:child_process";
 import fs from "node:fs";
 import { z } from "zod";
+import { childEnv } from "../env.js";
 import type { ToolDef } from "../types.js";
 
 const MAX_OUT = 20_000;
@@ -8,7 +9,8 @@ const MAX_OUT = 20_000;
 /**
  * Run a command, like Claude Code's Bash tool, so skills can use their bundled scripts.
  * Runs in the employee's files folder. Off unless a pack or the workspace turns on `shell`,
- * and every command asks first unless the user chose "always allow".
+ * and every command asks first unless the user chose "always allow". Commands get a clean environment without
+ * your keys (see env.ts), but they run as you: this is not a sandbox.
  */
 export const shellTools: ToolDef[] = [
   {
@@ -27,7 +29,7 @@ export const shellTools: ToolDef[] = [
       return new Promise((resolve) => {
         exec(
           i.command,
-          { cwd, timeout: (i.timeoutSec ?? 120) * 1000, maxBuffer: 10 * 1024 * 1024, windowsHide: true },
+          { cwd, env: childEnv(), signal: ctx.signal, timeout: (i.timeoutSec ?? 120) * 1000, maxBuffer: 10 * 1024 * 1024, windowsHide: true },
           (err, stdout, stderr) => {
             resolve({
               exitCode: err ? ((err as any).code ?? 1) : 0,

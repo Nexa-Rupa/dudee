@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
+import { onAccountSite } from "./posting.js";
 import { totp } from "./vault.js";
 import type { Runtime } from "./runtime.js";
 import type { ToolContext, ToolDef } from "./types.js";
@@ -19,16 +20,16 @@ import type { ToolContext, ToolDef } from "./types.js";
  * "post without asking".
  */
 export const PLATFORMS = {
-  x: { name: "X (Twitter)", toolkit: "twitter", loginUrl: "https://x.com/i/flow/login", composeUrl: "https://x.com/compose/post", maxChars: 280, video: "16:9 or 9:16, up to 2:20" },
-  linkedin: { name: "LinkedIn", toolkit: "linkedin", loginUrl: "https://www.linkedin.com/login", composeUrl: "https://www.linkedin.com/feed/", maxChars: 3000, video: "16:9, 1:1 or 9:16, up to 10 min" },
-  instagram: { name: "Instagram", toolkit: "instagram", loginUrl: "https://www.instagram.com/accounts/login/", composeUrl: "https://www.instagram.com/", maxChars: 2200, video: "9:16 reels, up to 90 s" },
-  facebook: { name: "Facebook", toolkit: "facebook", loginUrl: "https://www.facebook.com/login", composeUrl: "https://www.facebook.com/", maxChars: 63206, video: "16:9, 1:1 or 9:16" },
-  threads: { name: "Threads", toolkit: "threads", loginUrl: "https://www.threads.net/login", composeUrl: "https://www.threads.net/", maxChars: 500, video: "9:16, up to 5 min" },
-  youtube: { name: "YouTube", toolkit: "youtube", loginUrl: "https://accounts.google.com/ServiceLogin?service=youtube", composeUrl: "https://studio.youtube.com/", maxChars: 5000, video: "9:16 Shorts up to 60 s, or 16:9" },
-  tiktok: { name: "TikTok", toolkit: "tiktok", loginUrl: "https://www.tiktok.com/login", composeUrl: "https://www.tiktok.com/tiktokstudio/upload", maxChars: 2200, video: "9:16, 15-60 s works best" },
-  reddit: { name: "Reddit", toolkit: "reddit", loginUrl: "https://www.reddit.com/login/", composeUrl: "https://www.reddit.com/submit", maxChars: 40000, video: "16:9 or 9:16" },
-  pinterest: { name: "Pinterest", toolkit: "pinterest", loginUrl: "https://www.pinterest.com/login/", composeUrl: "https://www.pinterest.com/pin-creation-tool/", maxChars: 500, video: "2:3 or 9:16" },
-  other: { name: "Other site", toolkit: "", loginUrl: "", composeUrl: "", maxChars: 2000, video: "check the site" },
+  x: { name: "X (Twitter)", toolkit: "twitter", domains: ["x.com", "twitter.com"], loginUrl: "https://x.com/i/flow/login", composeUrl: "https://x.com/compose/post", maxChars: 280, video: "16:9 or 9:16, up to 2:20" },
+  linkedin: { name: "LinkedIn", toolkit: "linkedin", domains: ["linkedin.com"], loginUrl: "https://www.linkedin.com/login", composeUrl: "https://www.linkedin.com/feed/", maxChars: 3000, video: "16:9, 1:1 or 9:16, up to 10 min" },
+  instagram: { name: "Instagram", toolkit: "instagram", domains: ["instagram.com"], loginUrl: "https://www.instagram.com/accounts/login/", composeUrl: "https://www.instagram.com/", maxChars: 2200, video: "9:16 reels, up to 90 s" },
+  facebook: { name: "Facebook", toolkit: "facebook", domains: ["facebook.com"], loginUrl: "https://www.facebook.com/login", composeUrl: "https://www.facebook.com/", maxChars: 63206, video: "16:9, 1:1 or 9:16" },
+  threads: { name: "Threads", toolkit: "threads", domains: ["threads.net", "threads.com", "instagram.com"], loginUrl: "https://www.threads.net/login", composeUrl: "https://www.threads.net/", maxChars: 500, video: "9:16, up to 5 min" },
+  youtube: { name: "YouTube", toolkit: "youtube", domains: ["youtube.com", "accounts.google.com"], loginUrl: "https://accounts.google.com/ServiceLogin?service=youtube", composeUrl: "https://studio.youtube.com/", maxChars: 5000, video: "9:16 Shorts up to 60 s, or 16:9" },
+  tiktok: { name: "TikTok", toolkit: "tiktok", domains: ["tiktok.com"], loginUrl: "https://www.tiktok.com/login", composeUrl: "https://www.tiktok.com/tiktokstudio/upload", maxChars: 2200, video: "9:16, 15-60 s works best" },
+  reddit: { name: "Reddit", toolkit: "reddit", domains: ["reddit.com"], loginUrl: "https://www.reddit.com/login/", composeUrl: "https://www.reddit.com/submit", maxChars: 40000, video: "16:9 or 9:16" },
+  pinterest: { name: "Pinterest", toolkit: "pinterest", domains: ["pinterest.com"], loginUrl: "https://www.pinterest.com/login/", composeUrl: "https://www.pinterest.com/pin-creation-tool/", maxChars: 500, video: "2:3 or 9:16" },
+  other: { name: "Other site", toolkit: "", domains: [], loginUrl: "", composeUrl: "", maxChars: 2000, video: "check the site" },
 } as const;
 
 export type Platform = keyof typeof PLATFORMS;
@@ -243,7 +244,7 @@ export const socialTools: ToolDef[] = [
         media.push(full);
       }
       const post = ctx.runtime.store.addSocialPost({ accountId: a.id, hireId: ctx.hire.id, text: i.text, media: i.media ?? [], status: "approved" });
-      ctx.runtime.openPostingWindow(ctx.hire.id, POSTING_WINDOW_MS);
+      ctx.runtime.openPostingWindow(ctx.hire.id, { until: Date.now() + POSTING_WINDOW_MS, account: a, text: i.text, title: i.title, media });
       return {
         approved: true,
         postId: post.id,
@@ -252,7 +253,7 @@ export const socialTools: ToolDef[] = [
         next:
           a.method === "browser"
             ? [
-                `You may now use your browser without further approval for 20 minutes, only to publish this post.`,
+                `For 20 minutes you may publish this post on ${p.name} without further approval: clicks on that site, the approved text (typed exactly as approved) and the approved media. Anything else, or any other site, asks the user.`,
                 `1. browser_navigate to ${p.composeUrl || a.loginUrl || p.loginUrl}. If you are signed out, open ${a.loginUrl || p.loginUrl}, take a browser_snapshot, then vault_fill the username, then the password (and "otp" if a code is asked) using account "${a.id}".`,
                 `2. If a captcha or a check you can't pass appears, ask_user to finish it on your screen, then continue.`,
                 `3. Compose the post with exactly the approved text. Upload media with browser_file_upload using these full paths: ${media.join(", ") || "(none)"}.`,
@@ -278,7 +279,7 @@ export const socialTools: ToolDef[] = [
     risk: "read",
     async execute(i, ctx) {
       const ok = ctx.runtime.store.updateSocialPost(i.postId, { status: i.status, url: i.url ?? null, error: i.error ?? null });
-      if (i.status === "posted") ctx.runtime.closePostingWindow(ctx.hire.id);
+      ctx.runtime.closePostingWindow(ctx.hire.id);
       ctx.runtime.emit({ type: "social-changed" });
       return ok ? { recorded: true } : { error: `No post ${i.postId}` };
     },
@@ -286,7 +287,7 @@ export const socialTools: ToolDef[] = [
   {
     name: "vault_fill",
     description:
-      "Type a saved login value into a field on your browser page without seeing it: field 'username', 'password' or 'otp' (the current two-step code). Take a browser_snapshot first and pass the field's ref and a short description.",
+      "Type a saved login value into a field on your browser page without seeing it: field 'username', 'password' or 'otp' (the current two-step code). Works only on that account's own site, and passwords only go into password fields. Take a browser_snapshot first and pass the field's ref and a short description.",
     input: z.object({
       account: z.string().describe("Account id from social_accounts"),
       field: z.enum(["username", "password", "otp"]),
@@ -308,10 +309,35 @@ export const socialTools: ToolDef[] = [
         if (!cred.totpSecret) return { error: "No two-step secret saved for this account. Ask the user to read you the code or add it in Connections." };
         value = totp(cred.totpSecret);
       }
-      await ctx.runtime.browserCall(ctx.hire, "browser_type", { element: i.element, ref: i.ref, text: value, submit: !!i.submit });
+      const ref = /^((?:f\d+)?)e\d+$/.exec(i.ref);
+      if (!ref) return { error: "Pass the field's ref from the latest browser_snapshot, like e12 (not a selector)." };
+      // The address comes from the browser, not from the page, so a page can't pretend to be another site.
+      const page = await ctx.runtime.browserPage(ctx.hire);
+      if (!page.url || !onAccountSite(a, page.url)) {
+        return { error: `Not typed: your browser is on ${siteOf(page.url)}, which isn't ${PLATFORMS[a.platform].name}'s site for this account. Open ${a.loginUrl || PLATFORMS[a.platform].loginUrl} and try there.` };
+      }
+      // Only fields of the page itself: an embedded frame can belong to another site.
+      if (ref[1] !== page.refPrefix) return { error: "Not typed: that field is inside an embedded frame. Use a field of the page itself, with a ref from a fresh browser_snapshot." };
+      const kind = await ctx.runtime.browserFieldType(ctx.hire, i.element, i.ref);
+      if (!kind || (i.field === "password" && kind !== "password")) {
+        return { error: i.field === "password" ? "Not typed: that isn't a password field." : "Not typed: that isn't a text field." };
+      }
+      try {
+        await ctx.runtime.browserCall(ctx.hire, "browser_type", { element: i.element, target: i.ref, text: value, submit: !!i.submit });
+      } catch {
+        return { error: "Could not type into that field. Take a fresh browser_snapshot and try again with the new ref." };
+      }
       return { filled: i.field, note: "Typed without showing the value. Take a snapshot to see the page." };
     },
   },
 ];
+
+function siteOf(page: string | null) {
+  try {
+    return new URL(page ?? "").host || "an unknown page";
+  } catch {
+    return "an unknown page";
+  }
+}
 
 export { PLATFORM_LIST };

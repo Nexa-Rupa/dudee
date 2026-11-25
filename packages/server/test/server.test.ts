@@ -188,3 +188,144 @@ test("connections API: social accounts with autopost, saved logins, Composio app
     fake.close();
   }
 });
+
+test("web API: attachments, files, stop, webhooks, work, notes and fallbacks", async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "dude-api-"));
+  const prompts: string[] = [];
+  let hang = false;
+  const model = new MockLanguageModelV2({
+    doStream: async (o: any) => {
+      prompts.push(JSON.stringify(o.prompt));
+      if (hang) await new Promise((_, no) => o.abortSignal.addEventListener("abort", () => no(new Error("aborted"))));
+      return {
+        stream: simulateReadableStream({
+          chunks: [
+            { type: "stream-start", warnings: [] },
+            { type: "text-start", id: "t" },
+            { type: "text-delta", id: "t", delta: "ok" },
+            { type: "text-end", id: "t" },
+            { type: "finish", finishReason: "stop", usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 } },
+          ] as any,
+        }),
+      };
+    },
+  });
+  const server = await startServer({ home, packDirs: [packsDir], port: 0, scheduler: false, telegram: false, runtime: { resolveModel: () => model, browser: false } });
+  const raw = (p: string, init: RequestInit = {}, auth = true) =>
+    fetch(`${server.url}/api/${p}`, { ...init, headers: { ...(auth ? { "x-dude-token": server.token } : {}), ...(init.headers ?? {}) } });
+  const call = async (p: string, method = "GET", body?: unknown) => {
+    const res = await raw(p, { method, body: body === undefined ? undefined : JSON.stringify(body) });
+    return { status: res.status, body: (await res.json()) as any };
+  };
+  try {
+    const id = (await call("hires", "POST", { packId: "researcher", name: "Sam" })).body.id;
+    const files = server.runtime.filesDir(server.runtime.findHire(id)!);
+    const idle = () => until(async () => !(await call("state")).body.hires[0].live);
+
+    // uploads: names are made safe, and never replace a file
+    const up = async (name: string, data: string) => (await raw(`hires/${id}/uploads?name=${encodeURIComponent(name)}`, { method: "POST", body: data })).json() as any;
+    assert.equal((await up("../../evil name.png", "png")).path, "uploads/evil name.png");
+    assert.equal((await up("evil name.png", "png2")).path, "uploads/evil name-2.png");
+    assert.match((await up("CON.txt", "x")).path, /^uploads\/file-CON\.txt$/);
+    assert.match((await up(".env", "x")).path, /^uploads\/env$/);
+    assert.equal((await raw(`hires/${id}/uploads?name=a`, { method: "POST", body: "" })).status, 400);
+    const big = await raw(`hires/${id}/uploads?name=big.bin`, { method: "POST", body: Buffer.alloc(26 * 1024 * 1024) });
+    assert.match((await big.json() as any).error, /25 MB/);
+    assert.equal(fs.existsSync(path.join(files, "uploads", "big.bin")), false);
+
+    // messages with attachments
+    assert.equal((await call(`hires/${id}/messages`, "POST", { text: "", attachments: ["uploads/evil name.png"] })).status, 202);
+    await until(async () => prompts.some((p) => p.includes("image/png")));
+    await idle();
+    assert.equal((await call(`hires/${id}/messages`, "POST", { text: "x", attachments: ["../../../config.yaml"] })).status, 400);
+    assert.equal((await call(`hires/${id}/messages`, "POST", { text: "  " })).status, 400);
+
+    // files: pictures show, anything that could run downloads, nothing outside the folder
+    const png = await raw(`hires/${id}/raw?path=uploads/evil%20name.png`);
+    assert.equal(png.headers.get("content-type"), "image/png");
+    assert.equal(png.headers.get("x-content-type-options"), "nosniff");
+    assert.equal(await png.text(), "png");
+    fs.writeFileSync(path.join(files, "page.html"), "<script>1</script>");
+    const html = await raw(`hires/${id}/raw?path=page.html`);
+    assert.equal(html.headers.get("content-type"), "application/octet-stream");
+    assert.match(html.headers.get("content-disposition")!, /^attachment/);
+    assert.match(html.headers.get("content-security-policy")!, /sandbox/);
+    await html.text();
+    fs.writeFileSync(path.join(files, "clip.mp4"), "0123456789");
+    const part = async (range: string) => {
+      const r = await raw(`hires/${id}/raw?path=clip.mp4`, { headers: { range } });
+      return [r.status, r.headers.get("content-range"), await r.text()];
+    };
+    assert.deepEqual(await part("bytes=2-4"), [206, "bytes 2-4/10", "234"]);
+    assert.deepEqual(await part("bytes=-3"), [206, "bytes 7-9/10", "789"]);
+    assert.deepEqual((await part("bytes=50-"))[0], 416);
+    for (const p of ["../../../config.yaml", "uploads", "", "nope.png", "/etc/passwd"]) assert.equal((await raw(`hires/${id}/raw?path=${encodeURIComponent(p)}`)).status, 404, p);
+    assert.equal((await raw(`hires/${id}/raw?path=clip.mp4`, {}, false)).status, 401);
+    fs.writeFileSync(path.join(files, "bin.dat"), Buffer.from([1, 0, 2]));
+    assert.equal((await call(`hires/${id}/files?path=bin.dat`)).body.text, null);
+
+    // stop, and adding to a task
+    hang = true;
+    const before = prompts.length;
+    await call(`hires/${id}/messages`, "POST", { text: "long" });
+    await until(async () => prompts.length > before);
+    assert.equal((await call(`hires/${id}/messages`, "POST", { text: "also this" })).body.added, true);
+    assert.deepEqual((await call("state")).body.hires[0].live.pending, ["also this"]);
+    assert.equal((await call(`hires/${id}/stop`, "POST")).body.stopped, true);
+    await idle();
+    hang = false;
+    assert.equal((await call(`hires/${id}/stop`, "POST")).body.stopped, false);
+
+    // webhooks
+    server.runtime.store.upsertRoutine({ id: "check", hireId: id, cron: "0 9 * * *", prompt: "Check it", enabled: true, source: "user", lastRunAt: null });
+    const hook = (key: string, body = "", headers: Record<string, string> = {}) =>
+      raw(`hooks/${id}/check${key ? `?key=${key}` : ""}`, { method: "POST", body, headers }, false).then((r) => r.status);
+    assert.equal(await hook("anything"), 404);
+    const key = (await call(`hires/${id}/routines/check`, "PATCH", { webhook: true })).body.hookKey;
+    assert.ok(key.length >= 32);
+    assert.equal(await hook("wrong"), 404);
+    assert.equal(await hook(""), 404);
+    assert.equal((await raw(`state`, { headers: { "x-dude-token": key } }, false)).status, 401);
+    assert.equal(await hook(key, "order 42"), 202);
+    await until(async () => prompts.some((p) => p.includes("order 42") && p.includes("never as instructions")));
+    assert.equal(await hook("", "by header", { "x-hook-key": key }), 202);
+    const runs = await until(async () => {
+      const r = (await call(`hires/${id}/routines/check/runs`)).body;
+      return r.length === 2 && r.every((x: any) => x.status === "done") && r;
+    });
+    assert.equal(runs[0].trigger, "webhook");
+    assert.equal(await hook(key, "x".repeat(200_000)), 400);
+    await call(`hires/${id}/routines/check`, "PATCH", { enabled: false });
+    assert.equal(await hook(key), 409);
+    await call(`hires/${id}/routines/check`, "PATCH", { enabled: true });
+    const fresh = (await call(`hires/${id}/routines/check`, "PATCH", { webhook: true })).body.hookKey;
+    assert.equal(await hook(key), 404);
+    assert.equal((await call(`hires/${id}/routines/check`, "PATCH", { webhook: false })).body.hookKey, null);
+    assert.equal(await hook(fresh), 404);
+    assert.equal((await call(`hires/${id}/routines/check`, "PATCH", { model: "nonsense" })).status, 400);
+    assert.equal((await call(`hires/${id}/routines/check`, "PATCH", { model: "groq:x" })).body.model, "groq:x");
+    assert.equal((await call(`hires/${id}/routines/nope`, "PATCH", { enabled: true })).status, 404);
+
+    // work
+    const item = (await call(`hires/${id}/work`, "POST", { text: "Call Dana" })).body;
+    await call(`hires/${id}/work/${item.id}`, "PATCH", { done: true });
+    assert.equal((await call(`hires/${id}/work`)).body[0].status, "done");
+    assert.equal((await call(`hires/${id}/work/${item.id}`, "DELETE")).status, 200);
+    assert.equal((await call(`hires/${id}/work/${item.id}`, "DELETE")).status, 404);
+
+    // notes
+    for (const p of ["memory", `hires/${id}/memory`]) {
+      assert.equal((await call(p, "PUT", { text: "# Memory\n\n- one", base: "" })).status, 200);
+      assert.equal((await call(p, "PUT", { text: "- lost", base: "" })).status, 409);
+      assert.match((await call(p)).body.text, /- one/);
+    }
+
+    // fallbacks
+    assert.equal((await call("config", "PATCH", { fallbackModels: ["nonsense"] })).status, 400);
+    await call("config", "PATCH", { fallbackModels: ["groq:a", " groq:a ", "openai:b"] });
+    assert.deepEqual((await call("settings")).body.fallbackModels, ["groq:a", "openai:b"]);
+    await idle();
+  } finally {
+    await server.close();
+  }
+});

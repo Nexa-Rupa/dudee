@@ -109,7 +109,9 @@ test("teams export without keys and import into another workspace", async () => 
   assert.deepEqual(r.skills, ["brand-voice"]);
   const leo2 = b.findHire("Leo 2")!;
   assert.equal(leo2.budgetUsd, 20);
-  assert.equal(b.store.getPolicy(leo2.id, "routine_add"), "auto");
+  // a file can't grant permissions, only say what was allowed before
+  assert.equal(b.store.getPolicy(leo2.id, "routine_add"), null);
+  assert.deepEqual(r.notAllowed, [{ name: "Leo 2", tools: ["routine_add"] }]);
   assert.deepEqual(b.config.goals, ["Ship the launch"]);
   assert.equal(b.config.company.name, "Acme");
   assert.ok(b.skillsFor(b.packFor(leo2)!).some((s) => s.name === "brand-voice"));

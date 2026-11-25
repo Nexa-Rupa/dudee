@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import {
   MEDIA_PROVIDERS,
   Runtime,
@@ -21,6 +21,7 @@ import {
   priceFor,
   type ApprovalDecision,
   type Hire,
+  type Memory,
   type RuntimeEvent,
   type RuntimeOptions,
 } from "@dude/core";
@@ -108,13 +109,15 @@ export async function startServer(opts: ServerOptions) {
           resolve,
         };
         approvals.set(card.id, card);
+        req.signal?.addEventListener("abort", () => answerApproval(card.id, "deny"));
         broadcast({ type: "approval", approval: publicApproval(card) });
         void telegram.notifyApproval(card).catch(() => {});
       }),
-    ask: (hire, question) =>
+    ask: (hire, question, askOpts) =>
       new Promise<string | null>((resolve) => {
         const card: PendingQuestion = { id: randomUUID(), hireId: hire.id, question, at: new Date().toISOString(), resolve };
         questions.set(card.id, card);
+        askOpts?.signal?.addEventListener("abort", () => answerQuestion(card.id, null));
         broadcast({ type: "question", question: publicQuestion(card) });
         void telegram.notifyQuestion(card).catch(() => {});
       }),
@@ -135,6 +138,10 @@ export async function startServer(opts: ServerOptions) {
     if (e.type === "delta") {
       const l = live.get(e.hireId);
       if (l) l.text += e.text;
+    }
+    if (e.type === "rewind") {
+      const l = live.get(e.hireId);
+      if (l) l.text = e.text;
     }
     broadcast(e);
   });
@@ -161,7 +168,7 @@ export async function startServer(opts: ServerOptions) {
       ownModel: h.model,
       modelReady: modelReady(pack ? runtime.modelFor(h, pack) : (h.model ?? runtime.config.model)),
       hasBrowser: !!pack?.tools.includes("browser"),
-      live: live.get(h.id) ?? null,
+      live: live.has(h.id) ? { ...live.get(h.id)!, pending: runtime.pendingFor(h.id) } : null,
       spend: runtime.spendThisMonth(h.id),
     };
   };
@@ -244,11 +251,14 @@ export async function startServer(opts: ServerOptions) {
       if (!url.pathname.startsWith("/api/")) return serveStatic(opts.webDir, url.pathname, res);
 
       if (!hostOk(req.headers.host)) return send(res, 403, { error: "This address isn't allowed. Add it to DUDE_ALLOWED_HOSTS." });
-      const given = req.headers["x-dude-token"] ?? url.searchParams.get("token");
-      if (given !== token) return send(res, 401, { error: "Missing or wrong token. Open the link printed by `dudee ui`." });
-
       const parts = url.pathname.split("/").filter(Boolean).slice(1); // drop "api"
       const method = req.method ?? "GET";
+
+      // A routine's webhook has its own key, which starts that routine and opens nothing else.
+      if (parts[0] === "hooks" && parts.length === 3 && method === "POST") return await runHook(parts, url, req, res);
+
+      const given = req.headers["x-dude-token"] ?? url.searchParams.get("token");
+      if (given !== token) return send(res, 401, { error: "Missing or wrong token. Open the link printed by `dudee ui`." });
 
       if (parts[0] === "events" && method === "GET") {
         res.writeHead(200, {
@@ -300,13 +310,13 @@ export async function startServer(opts: ServerOptions) {
       if (parts[0] === "settings" && method === "GET") {
         const c = runtime.config;
         // models in use, with the price dudee will charge them at (null = unknown, needs a price)
-        const inUse = [...new Set([c.model, ...runtime.listHires().map((h) => {
+        const inUse = [...new Set([c.model, ...c.fallbackModels, ...runtime.listHires().map((h) => {
           const p = runtime.packFor(h);
           return p ? runtime.modelFor(h, p) : c.model;
         })])].map((id) => ({ model: id, price: priceFor(id, c), custom: !!c.prices[id] }));
         return send(res, 200, {
           globalSkills: c.globalSkills, extraTools: c.extraTools, skillDirs: c.skillDirs, company: c.company, model: c.model,
-          goals: c.goals, budgetUsd: c.budgetUsd, prices: inUse,
+          goals: c.goals, budgetUsd: c.budgetUsd, prices: inUse, fallbackModels: c.fallbackModels,
         });
       }
       if (parts[0] === "team" && parts[1] === "export" && method === "GET") {
@@ -334,6 +344,11 @@ export async function startServer(opts: ServerOptions) {
         if (body.company && typeof body.company === "object") runtime.config.company = { ...runtime.config.company, ...body.company };
         if (Array.isArray(body.goals)) runtime.config.goals = body.goals.map((g: unknown) => String(g).trim()).filter(Boolean);
         if (body.budgetUsd !== undefined) runtime.config.budgetUsd = money(body.budgetUsd);
+        if (Array.isArray(body.fallbackModels)) {
+          const list: string[] = body.fallbackModels.map((m: unknown) => String(m).trim()).filter(Boolean);
+          for (const m of list) parseModelId(m);
+          runtime.config.fallbackModels = [...new Set(list)].slice(0, 5);
+        }
         if (body.price && typeof body.price === "object") {
           const { model, in: pin, out: pout } = body.price;
           parseModelId(String(model));
@@ -349,6 +364,9 @@ export async function startServer(opts: ServerOptions) {
         runtime.reloadSkills();
         return send(res, 200, { ok: true });
       }
+
+      if (parts[0] === "memory" && method === "GET") return send(res, 200, { text: runtime.teamMemory().text() });
+      if (parts[0] === "memory" && method === "PUT") return saveMemory(runtime.teamMemory(), await readJson(req), res);
 
       if (parts[0] === "hires" && parts.length === 1 && method === "POST") {
         const body = await readJson(req);
@@ -388,7 +406,7 @@ export async function startServer(opts: ServerOptions) {
           return send(res, ok ? 200 : 404, { ok });
         }
         if (sub === "routines" && parts[3] && parts[4] === "run" && method === "POST") {
-          // also the webhook: POST /api/hires/<name>/routines/<id>/run with the x-dude-token header
+
           runtime.runRoutine(hire.id, decodeURIComponent(parts[3])).catch((err) => log(`✗ ${hire.name}: ${errorText(err)}`));
           return send(res, 202, { ok: true });
         }
@@ -414,28 +432,85 @@ export async function startServer(opts: ServerOptions) {
         }
         if (sub === "messages" && method === "POST") {
           const body = await readJson(req);
-          const text = String(body.text ?? "").trim();
+          const root = runtime.filesDir(hire);
+          const attachments: string[] = (Array.isArray(body.attachments) ? body.attachments.map(String) : []).slice(0, 10);
+          for (const a of attachments) if (!insideFile(root, a)) return send(res, 400, { error: `No file ${a}` });
+          const text = String(body.text ?? "").trim() || (attachments.length ? "Take a look at this." : "");
           if (!text) return send(res, 400, { error: "Empty message" });
-          runtime.send(hire.id, text).catch((err) => log(`✗ ${hire.name}: ${errorText(err)}`));
-          return send(res, 202, { ok: true });
+          const told = runtime.tell(hire.id, text, { attachments });
+          told.done?.catch((err) => log(`✗ ${hire.name}: ${errorText(err)}`));
+          return send(res, 202, { ok: true, added: told.added });
         }
-        if (sub === "memory" && method === "GET") return send(res, 200, { text: runtime.memoryFor(hire).read() });
+        if (sub === "stop" && method === "POST") return send(res, 200, { stopped: runtime.stop(hire.id) });
+        if (sub === "uploads" && method === "POST") {
+          const name = uploadName(url.searchParams.get("name") ?? "");
+          const dir = path.join(runtime.filesDir(hire), "uploads");
+          const data = await readBody(req, MAX_UPLOAD);
+          if (!data.length) return send(res, 400, { error: "The file is empty" });
+          fs.mkdirSync(dir, { recursive: true });
+          const ext = path.extname(name);
+          let file = name;
+          for (let i = 2; fs.existsSync(path.join(dir, file)); i++) file = `${path.basename(name, ext)}-${i}${ext}`;
+          fs.writeFileSync(path.join(dir, file), data);
+          return send(res, 201, { path: `uploads/${file}`, size: data.length });
+        }
+        if (sub === "raw" && method === "GET") {
+          const full = insideFile(runtime.filesDir(hire), url.searchParams.get("path") ?? "");
+          return full ? sendFile(full, req, res, url.searchParams.has("download")) : send(res, 404, { error: "No such file" });
+        }
+        if (sub === "work") {
+          const changed = () => runtime.emit({ type: "work-changed", hireId: hire.id });
+          if (method === "GET") return send(res, 200, runtime.store.work(hire.id));
+          if (method === "POST" && !parts[3]) {
+            const text = String((await readJson(req)).text ?? "").trim();
+            if (!text) return send(res, 400, { error: "Say what needs doing" });
+            const item = runtime.store.addWork(hire.id, text);
+            changed();
+            return send(res, 201, item);
+          }
+          if (method === "PATCH" && parts[3]) {
+            const ok = runtime.store.setWork(hire.id, parts[3], (await readJson(req)).done ? "done" : "open");
+            changed();
+            return send(res, ok ? 200 : 404, { ok });
+          }
+          if (method === "DELETE" && parts[3]) {
+            const ok = runtime.store.removeWork(hire.id, parts[3]);
+            changed();
+            return send(res, ok ? 200 : 404, { ok });
+          }
+        }
+        if (sub === "memory" && method === "PUT") return saveMemory(runtime.memoryFor(hire), await readJson(req), res);
+        if (sub === "memory" && method === "GET") return send(res, 200, { text: runtime.memoryFor(hire).text() });
         if (sub === "files" && method === "GET") {
           const root = runtime.filesDir(hire);
           const file = url.searchParams.get("path");
           if (file) {
-            const full = path.resolve(root, file);
-            if (!full.startsWith(root + path.sep) || !fs.existsSync(full)) return send(res, 404, { error: "No such file" });
-            return send(res, 200, { path: file, text: fs.readFileSync(full, "utf8").slice(0, 200_000) });
+            const full = insideFile(root, file);
+            if (!full) return send(res, 404, { error: "No such file" });
+            const data = fs.readFileSync(full);
+            if (data.subarray(0, 8000).includes(0)) return send(res, 200, { path: file, text: null });
+            return send(res, 200, { path: file, text: data.toString("utf8").slice(0, 200_000) });
           }
           return send(res, 200, listFiles(root));
         }
         if (sub === "routines" && !parts[3] && method === "GET") return send(res, 200, runtime.store.routines(hire.id));
         if (sub === "routines" && parts[3] && method === "PATCH") {
           const body = await readJson(req);
-          const ok = runtime.store.setRoutineEnabled(hire.id, decodeURIComponent(parts[3]), !!body.enabled);
-          if (ok) runtime.emit({ type: "routines-changed" });
-          return send(res, ok ? 200 : 404, { ok });
+          const rid = decodeURIComponent(parts[3]);
+          if (!runtime.store.routines(hire.id).some((r) => r.id === rid)) return send(res, 404, { ok: false });
+          if (body.enabled !== undefined) runtime.store.setRoutineEnabled(hire.id, rid, !!body.enabled);
+          if (body.model !== undefined) {
+            const model = body.model ? String(body.model).trim() : null;
+            if (model) parseModelId(model);
+            runtime.store.setRoutineModel(hire.id, rid, model);
+          }
+          // true makes a webhook (or a new key for it); false turns it off
+          if (body.webhook !== undefined) runtime.store.setRoutineHook(hire.id, rid, body.webhook ? randomBytes(24).toString("base64url") : null);
+          runtime.emit({ type: "routines-changed" });
+          return send(res, 200, runtime.store.routines(hire.id).find((r) => r.id === rid));
+        }
+        if (sub === "routines" && parts[3] && parts[4] === "runs" && method === "GET") {
+          return send(res, 200, runtime.store.runs(hire.id, decodeURIComponent(parts[3])));
         }
         if (sub === "screen" && method === "GET") {
           const shot = runtime.screens.get(hire.id);
@@ -461,6 +536,42 @@ export async function startServer(opts: ServerOptions) {
       return send(res, 400, { error: errorText(err) });
     }
   });
+
+  const hooksRunning = new Map<string, number>();
+
+  async function runHook(parts: string[], url: URL, req: http.IncomingMessage, res: http.ServerResponse) {
+    const [hireRef, rid] = parts.slice(1).map(decodeURIComponent);
+    const hire = runtime.findHire(hireRef);
+    const routine = hire && runtime.store.routines(hire.id).find((r) => r.id === rid);
+    const auth = String(req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
+    const given = String(req.headers["x-hook-key"] ?? "") || auth || url.searchParams.get("key") || "";
+    // one answer for "no such routine" and "wrong key", so a stranger learns nothing
+    if (!hire || !routine?.hookKey || !sameSecret(given, routine.hookKey)) return send(res, 404, { error: "No such webhook" });
+    if (!routine.enabled) return send(res, 409, { error: "This routine is off" });
+    if (hire.paused) return send(res, 409, { error: `${hire.name} is paused` });
+    const id = `${hire.id}/${rid}`;
+    const busy = hooksRunning.get(id) ?? 0;
+    if (busy >= MAX_HOOKS_WAITING) return send(res, 429, { error: "Too many runs are waiting" });
+    hooksRunning.set(id, busy + 1);
+    let data = "";
+    try {
+      data = (await readBody(req, MAX_HOOK_BODY)).toString("utf8").trim();
+    } catch (err) {
+      hooksRunning.set(id, (hooksRunning.get(id) ?? 1) - 1);
+      throw err;
+    }
+    runtime
+      .runRoutine(hire.id, rid, { trigger: "webhook", data })
+      .catch((err) => log(`✗ ${hire.name}: ${errorText(err)}`))
+      .finally(() => hooksRunning.set(id, (hooksRunning.get(id) ?? 1) - 1));
+    return send(res, 202, { ok: true });
+  }
+
+  function saveMemory(memory: Memory, body: any, res: http.ServerResponse) {
+    const ok = memory.replace(String(body.text ?? ""), String(body.base ?? ""));
+    if (!ok) return send(res, 409, { error: "These notes changed while you were editing. Copy your edits, reload and try again." });
+    return send(res, 200, { text: memory.text() });
+  }
 
   function answerApproval(id: string, decision: ApprovalDecision) {
     const card = approvals.get(id);
@@ -500,7 +611,9 @@ export async function startServer(opts: ServerOptions) {
       for (const id of [...approvals.keys()]) answerApproval(id, "deny");
       for (const id of [...questions.keys()]) answerQuestion(id, null);
       for (const res of clients) res.end();
-      await new Promise<void>((resolve) => server.close(() => resolve()));
+      const closed = new Promise<void>((resolve) => server.close(() => resolve()));
+      server.closeAllConnections();
+      await closed;
       await runtime.close();
     },
   };
@@ -533,6 +646,95 @@ function makeHostCheck(bind: string, allowed?: string[]) {
 function send(res: http.ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(body));
+}
+
+const MAX_UPLOAD = 25 * 1024 * 1024;
+const MAX_HOOK_BODY = 100_000;
+const MAX_HOOKS_WAITING = 5;
+
+async function readBody(req: http.IncomingMessage, limit: number): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    // read on without keeping it, so the sender gets the answer instead of a broken connection
+    if (size <= limit) chunks.push(chunk);
+    else if (size > limit * 4) break;
+  }
+  if (size > limit) throw new Error(`Too large: the limit is ${limit >= 1024 * 1024 ? `${Math.round(limit / 1024 / 1024)} MB` : `${Math.round(limit / 1000)} KB`}`);
+  return Buffer.concat(chunks);
+}
+
+function sameSecret(a: string, b: string) {
+  const [x, y] = [Buffer.from(a), Buffer.from(b)];
+  return x.length === y.length && timingSafeEqual(x, y);
+}
+
+/** The full path of an existing file inside a folder, following links, or null. */
+function insideFile(root: string, rel: string): string | null {
+  const full = path.resolve(root, rel);
+  if (!rel || !full.startsWith(root + path.sep)) return null;
+  try {
+    const real = fs.realpathSync(full);
+    if (!real.startsWith(fs.realpathSync(root) + path.sep) || !fs.statSync(real).isFile()) return null;
+    return full;
+  } catch {
+    return null;
+  }
+}
+
+/** A plain file name: no folders, no odd characters, not hidden. */
+function uploadName(raw: string) {
+  const base = raw.split(/[\\/]/).pop() ?? "";
+  const clean = base.normalize("NFC").replace(/[^\p{L}\p{N} ._()-]/gu, "_").replace(/^[.\s]+/, "").replace(/[.\s]+$/, "");
+  const ext = path.extname(clean).slice(0, 12);
+  const stem = path.basename(clean, path.extname(clean)).slice(0, 80);
+  return `${/^(con|prn|aux|nul|com\d|lpt\d)$/i.test(stem) || !stem ? `file-${stem}` : stem}${ext}`;
+}
+
+/** Types shown in the page. Anything else downloads, so a file an employee saved never runs as part of this app. */
+const VIEWABLE: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".mov": "video/quicktime",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".m4a": "audio/mp4",
+  ".pdf": "application/pdf",
+};
+
+function sendFile(full: string, req: http.IncomingMessage, res: http.ServerResponse, download: boolean) {
+  const type = download ? undefined : VIEWABLE[path.extname(full).toLowerCase()];
+  const size = fs.statSync(full).size;
+  const headers: Record<string, string | number> = {
+    "content-type": type ?? "application/octet-stream",
+    "content-disposition": `${type ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(path.basename(full)).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16)}`)}`,
+    "x-content-type-options": "nosniff",
+    "cache-control": "private, no-cache",
+    "accept-ranges": "bytes",
+    // the link carries the token, so it must not leave with a referrer
+    "referrer-policy": "no-referrer",
+  };
+  if (type !== "application/pdf") headers["content-security-policy"] = "sandbox; default-src 'none'";
+  // video players ask for pieces
+  const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range ?? ""));
+  if (range && (range[1] || range[2])) {
+    const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));
+    const end = range[1] && range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
+    if (start > end || start >= size) {
+      res.writeHead(416, { "content-range": `bytes */${size}` });
+      return res.end();
+    }
+    res.writeHead(206, { ...headers, "content-range": `bytes ${start}-${end}/${size}`, "content-length": end - start + 1 });
+    return fs.createReadStream(full, { start, end }).on("error", () => res.destroy()).pipe(res);
+  }
+  res.writeHead(200, { ...headers, "content-length": size });
+  return fs.createReadStream(full).on("error", () => res.destroy()).pipe(res);
 }
 
 async function readJson(req: http.IncomingMessage, limit = 1_000_000): Promise<any> {

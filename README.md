@@ -130,11 +130,16 @@ Paste a key, press **Save and check**, and pick from the models your key can use
 ### Everything an employee has
 
 - **Approvals.** Reading runs at once. Sending, posting, scheduling, calling and spending wait for **Allow**, **Always allow** or **Don't allow**. Phone calls ask every time. You can take back any "always allow".
-- **Budgets.** A monthly dollar limit per employee and for the whole team. A note at 80%, an automatic pause at 100%.
+- **Stop and steer.** Stop an employee mid-task, or add a message while they work: they read it at the next step.
+- **Attachments.** Drop, paste or pick files in chat. Pictures and PDFs go to models that can read them. Images, video and audio open in Files.
+- **Fallback models.** When a model fails or hits a limit, the next one carries on from the last finished step.
+- **Budgets.** A monthly dollar limit per employee and for the whole team. A note at 80%, an automatic pause at 100%, even partway through a task. Models without a built-in price need one in Settings first.
 - **Pause and resume.** A paused employee takes no work and runs no routines.
 - **Company goals.** Set them once; every employee ties their work to one.
-- **Routines.** Recurring work on a schedule, with **Run now** and a webhook to trigger it from anywhere.
-- **Memory and files.** Plain files you can read, edit and back up.
+- **Routines.** Recurring work on a schedule, with **Run now**, run history, an optional model of its own, and a webhook address that opens only that routine.
+- **Memory and files.** Plain files you can read, edit and back up. Team memory is shared by every employee; they ask before adding to it.
+- **Open work.** A list per employee of what is still to do; they add to it, and so can you.
+- **Skills they save.** After a good run, an employee can save the steps as a skill for the whole team, with your OK.
 - **Teammates.** Employees hand work to each other ("ask Leo for a draft").
 - **Their own browser.** The Marketing Manager and Researcher drive a real Chrome window you can watch or take over.
 - **Images and video.** The Content Creator makes visuals through [fal.ai](https://fal.ai) (Flux, Kling, Recraft and more).
@@ -257,6 +262,8 @@ Tools marked read-only run at once; the rest ask first. You can also add app ser
 | `DUDE_PORT` | `4777` | Port for the web app |
 | `DUDE_HOST` | `127.0.0.1` | Set `0.0.0.0` to listen beyond this machine |
 | `DUDE_UI_TOKEN` | random, saved | The private token in your link |
+| `DUDE_SHELL_ENV` | | Extra variables commands may see, e.g. `MY_TOOL_TOKEN`. Your keys are hidden from them |
+| `DUDE_ALLOW_PRIVATE_FETCH` | | `1` lets employees read pages on this machine or your network |
 | `DUDE_ALLOWED_HOSTS` | | Domains allowed to reach the app, e.g. `dudee.example.com` |
 
 Put the app behind HTTPS before exposing it, and keep your token private.

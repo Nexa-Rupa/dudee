@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { CostSettings, GoalsSettings, TeamSettings } from "./SettingsExtra";
+import { CostSettings, FallbackSettings, GoalsSettings, TeamMemorySettings, TeamSettings } from "./SettingsExtra";
 import { api, type ChatProvider, type MediaProvider, type ProvidersView } from "./api";
 
 /** Every model id we can suggest: provider defaults plus models fetched from connected providers. */
@@ -385,7 +385,9 @@ export function SettingsPage(props: { onChanged: () => void }) {
         <h2 id="models-h">Models</h2>
         <ModelsPanel onDefaultChanged={props.onChanged} />
       </section>
+      <FallbackSettings />
       <GoalsSettings onChanged={props.onChanged} />
+      <TeamMemorySettings />
       <CostSettings onChanged={props.onChanged} />
       <TeamSettings onChanged={props.onChanged} />
       <SkillsSettings />

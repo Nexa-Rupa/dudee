@@ -43,7 +43,7 @@ import { randomBytes } from "node:crypto";
 // The published package carries the built web app in ./web next to ./dist; in the repo it comes from apps/web.
 const bundledWeb = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "web");
 const webDir = fs.existsSync(path.join(bundledWeb, "index.html")) ? bundledWeb : devWebDir;
-const VERSION = "2.1.0";
+const VERSION = "2.2.0";
 
 try {
   process.loadEnvFile(".env");
@@ -469,6 +469,7 @@ program
       console.log(green(`✓ Hired ${r.hired.map((h) => h.name).join(", ") || "nobody"}`));
       if (r.skills.length) console.log(`  Skills added: ${r.skills.join(", ")}`);
       for (const s of r.skipped) console.log(yellow(`  Skipped ${s.name}: ${s.reason}`));
+      for (const n of r.notAllowed) console.log(yellow(`  ${n.name} will ask before: ${n.tools.join(", ")} (a file can't grant "always allow")`));
     } catch (err) {
       console.error(red(errorText(err)));
       process.exitCode = 1;
@@ -651,7 +652,7 @@ program
     if (!hire) console.error(red(`No employee named ${name}`));
     else {
       console.log(dim(path.join(hireDir(home, hire.id), "MEMORY.md")));
-      console.log(runtime.memoryFor(hire).read() || "(nothing yet)");
+      console.log(runtime.memoryFor(hire).text() || "(nothing yet)");
     }
     runtime.store.close();
   });

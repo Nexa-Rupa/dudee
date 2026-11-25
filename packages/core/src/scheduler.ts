@@ -13,6 +13,7 @@ export class Scheduler {
   ) {}
 
   start() {
+    this.runtime.store.closeOpenRuns();
     this.reload();
     this.unsubscribe = this.runtime.on((e) => {
       if (e.type === "routines-changed" || e.type === "team-changed") this.reload();
@@ -35,9 +36,8 @@ export class Scheduler {
       try {
         const job = new Cron(r.cron, { protect: true }, async () => {
           this.log(`▶ ${hire.name}: routine ${r.id}`);
-          this.runtime.store.markRoutineRun(hire.id, r.id);
           try {
-            await this.runtime.send(hire.id, r.prompt, { from: `routine:${r.id}` });
+            await this.runtime.runRoutine(hire.id, r.id, { trigger: "schedule" });
             this.log(`✓ ${hire.name}: routine ${r.id} done`);
           } catch (err) {
             this.log(`✗ ${hire.name}: routine ${r.id} failed: ${errorText(err)}`);

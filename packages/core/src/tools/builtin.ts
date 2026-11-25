@@ -8,7 +8,8 @@ import { mediaTools } from "./media.js";
 import { shellTools } from "./shell.js";
 import { videoTools } from "./video.js";
 import { socialTools } from "../social.js";
-import { readSkillFile, renderSkill } from "../skills.js";
+import { fetchPublic } from "../net.js";
+import { readSkillFile, renderSkill, saveSkill } from "../skills.js";
 
 const MAX_TEXT = 20_000;
 
@@ -44,7 +45,9 @@ const files: ToolDef[] = [
     risk: "read",
     async execute(input, ctx) {
       const { full } = safePath(ctx, input.path);
-      return fs.readFileSync(full, "utf8").slice(0, MAX_TEXT);
+      const data = fs.readFileSync(full);
+      if (data.subarray(0, 8000).includes(0)) return { error: `${input.path} is not a text file (${data.length} bytes). You can only read text.` };
+      return data.toString("utf8").slice(0, MAX_TEXT);
     },
   }),
   define({
@@ -73,8 +76,35 @@ const memory: ToolDef[] = [
     input: z.object({ fact: z.string() }),
     risk: "read",
     async execute({ fact }, ctx) {
-      ctx.runtime.memoryFor(ctx.hire).save(fact);
-      return { saved: true };
+      return ctx.runtime.memoryFor(ctx.hire).save(fact);
+    },
+  }),
+  define({
+    name: "memory_update",
+    description: "Replace every remembered fact that contains the given text with one new fact: to correct it, or to merge several into one.",
+    input: z.object({ match: z.string(), fact: z.string() }),
+    risk: "read",
+    async execute({ match, fact }, ctx) {
+      return ctx.runtime.memoryFor(ctx.hire).update(match, fact);
+    },
+  }),
+  define({
+    name: "memory_search",
+    description: "Find remembered facts that contain all the given words, including any not shown in your prompt.",
+    input: z.object({ query: z.string() }),
+    risk: "read",
+    async execute({ query }, ctx) {
+      return ctx.runtime.memoryFor(ctx.hire).search(query).slice(0, 50);
+    },
+  }),
+  define({
+    name: "team_memory_save",
+    description: "Remember a fact for every employee: the company, its products, how the user wants work done. One short sentence. Give `replaces` to swap out the team facts that contain that text.",
+    input: z.object({ fact: z.string(), replaces: z.string().optional() }),
+    risk: "write", // it reaches every employee's prompt, so the user sees it first
+    summarize: (i) => `tell every employee to remember: ${i.fact}${i.replaces ? ` (instead of what mentions "${i.replaces}")` : ""}`,
+    async execute({ fact, replaces }, ctx) {
+      return replaces ? ctx.runtime.teamMemory().update(replaces, fact) : ctx.runtime.teamMemory().save(fact);
     },
   }),
   define({
@@ -108,17 +138,15 @@ export function htmlToText(html: string) {
 
 const webFetch = define({
   name: "web_fetch",
-  description: "Fetch a web page and return its readable text.",
+  description: "Fetch a public web page and return its readable text.",
   input: z.object({ url: z.string().url() }),
   risk: "read",
   async execute({ url }, ctx) {
-    const res = await fetch(url, {
+    const res = await fetchPublic(url, {
       headers: { "user-agent": "dude-agent/0.1 (+https://github.com/)" },
-      signal: ctx.signal ?? AbortSignal.timeout(20_000),
+      signal: ctx.signal,
     });
-    const type = res.headers.get("content-type") ?? "";
-    const body = await res.text();
-    const text = type.includes("html") ? htmlToText(body) : body;
+    const text = res.contentType.includes("html") ? htmlToText(res.body) : res.body;
     return { status: res.status, url: res.url, text: text.slice(0, MAX_TEXT) };
   },
 });
@@ -199,6 +227,58 @@ const skills: ToolDef[] = [
       return readSkillFile(s, rel);
     },
   }),
+  define({
+    name: "skill_save",
+    description:
+      "Save how you did a task as a skill, so you and your teammates can repeat it: when to use it, the steps, and what to check. Saving an existing name replaces that workspace skill.",
+    input: z.object({
+      name: z.string().describe("short kebab-case name, e.g. weekly-report"),
+      description: z.string().describe("one sentence: what it does and when to use it"),
+      steps: z.string().describe("the playbook in Markdown"),
+    }),
+    risk: "write",
+    summarize: (i) => `save the skill "${i.name}" for the whole team: ${i.description}`,
+    async execute(input, ctx) {
+      const { updated } = saveSkill(ctx.runtime.home, { ...input, author: ctx.hire.name });
+      ctx.runtime.reloadSkills();
+      return { [updated ? "updated" : "saved"]: input.name };
+    },
+  }),
+];
+
+// ── open work: what the employee still has to do ───────────────────────────
+const work: ToolDef[] = [
+  define({
+    name: "work_add",
+    description: "Add something to your open work: a task you started and will finish later, or a follow-up you promised.",
+    input: z.object({ text: z.string() }),
+    risk: "read",
+    async execute({ text }, ctx) {
+      const item = ctx.runtime.store.addWork(ctx.hire.id, text);
+      ctx.runtime.emit({ type: "work-changed", hireId: ctx.hire.id });
+      return { id: item.id };
+    },
+  }),
+  define({
+    name: "work_done",
+    description: "Mark one of your open work items as done, by its id.",
+    input: z.object({ id: z.string() }),
+    risk: "read",
+    async execute({ id }, ctx) {
+      const ok = ctx.runtime.store.setWork(ctx.hire.id, id, "done");
+      ctx.runtime.emit({ type: "work-changed", hireId: ctx.hire.id });
+      return ok ? { done: true } : { error: `No open work "${id}"` };
+    },
+  }),
+  define({
+    name: "work_list",
+    description: "List your open work.",
+    input: z.object({}),
+    risk: "read",
+    async execute(_i, ctx) {
+      return ctx.runtime.store.work(ctx.hire.id, "open").map((w) => ({ id: w.id, text: w.text, since: w.createdAt.slice(0, 10) }));
+    },
+  }),
 ];
 
 // ── asking the user ────────────────────────────────────────────────────────
@@ -209,7 +289,7 @@ const askUser = define({
   input: z.object({ question: z.string() }),
   risk: "read",
   async execute({ question }, ctx) {
-    const answer = await ctx.runtime.ask(ctx.hire, question);
+    const answer = await ctx.runtime.ask(ctx.hire, question, ctx);
     return answer ?? "The user is not available right now. Proceed with your best judgment and state your assumptions.";
   },
 });
@@ -238,11 +318,7 @@ const team: ToolDef[] = [
       const target = ctx.runtime.findHire(name);
       if (!target) return { error: `No teammate named ${name}` };
       if (ctx.chain.includes(target.id)) return { error: `${target.name} is already part of this conversation; reply instead.` };
-      const reply = await ctx.runtime.send(target.id, message, {
-        from: ctx.hire.name,
-        chain: [...ctx.chain, ctx.hire.id],
-      });
-      return { from: target.name, reply };
+      return ctx.runtime.delegate(ctx, target, message);
     },
   }),
 ];
@@ -255,7 +331,7 @@ const routines: ToolDef[] = [
     input: z.object({}),
     risk: "read",
     async execute(_i, ctx) {
-      return ctx.runtime.store.routines(ctx.hire.id);
+      return ctx.runtime.store.routines(ctx.hire.id).map(({ hookKey: _secret, ...r }) => r);
     },
   }),
   define({
@@ -293,6 +369,7 @@ const routines: ToolDef[] = [
 export const TOOL_GROUPS: Record<string, ToolDef[]> = {
   files,
   memory,
+  work,
   web_search: [webSearch],
   web_fetch: [webFetch],
   web: [webSearch, webFetch],
@@ -308,4 +385,4 @@ export const TOOL_GROUPS: Record<string, ToolDef[]> = {
 };
 
 /** Every employee gets these, whatever the pack lists. */
-export const ALWAYS_ON = ["memory", "skills", "ask_user", "team", "files"];
+export const ALWAYS_ON = ["memory", "work", "skills", "ask_user", "team", "files"];

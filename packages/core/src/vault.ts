@@ -126,19 +126,29 @@ export class Vault {
 
   /** Replace any vault secret inside a value (string or JSON) with a placeholder. */
   redact<T>(value: T): T {
-    const secrets = this.secrets();
-    if (!secrets.length || value === undefined || value === null) return value;
-    const text = typeof value === "string" ? value : JSON.stringify(value);
-    if (text === undefined || !secrets.some((s) => text.includes(s))) return value;
-    let scrubbed = text;
-    for (const s of secrets) scrubbed = scrubbed.split(s).join("[hidden by vault]");
-    if (typeof value === "string") return scrubbed as T;
-    try {
-      return JSON.parse(scrubbed) as T;
-    } catch {
-      return scrubbed as T;
-    }
+    return scrub(value, this.secrets(), "[hidden by vault]");
   }
+}
+
+/** Replace secrets in every string inside a value. Also catches them escaped, as tools print them in code or JSON. */
+export function scrub<T>(value: T, secrets: string[], placeholder: string): T {
+  if (!secrets.length) return value;
+  const forms = new Set<string>();
+  for (const s of secrets) {
+    const json = JSON.stringify(s).slice(1, -1);
+    const js = s.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    for (const f of [s, json, js]) forms.add(f);
+  }
+  const list = [...forms].sort((a, b) => b.length - a.length);
+  const walk = (v: unknown): unknown => {
+    if (typeof v === "string") return list.reduce((text, f) => (text.includes(f) ? text.split(f).join(placeholder) : text), v);
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === "object" && [Object.prototype, null].includes(Object.getPrototypeOf(v))) {
+      return Object.fromEntries(Object.entries(v).map(([k, x]) => [walk(k), walk(x)]));
+    }
+    return v;
+  };
+  return walk(value) as T;
 }
 
 // ── TOTP (RFC 6238), so employees can pass two-step sign-in on their own ──────

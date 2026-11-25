@@ -21,9 +21,20 @@
 | Packs | `packs.ts`, `packages/employees/packs/*` | Role definitions: tools, approvals, routines, instructions, skills |
 | Tools | `tools/builtin.ts`, `tools/phone.ts` | Built-in groups a pack lists by name. `memory`, `skills`, `ask_user`, `team`, `files` are always on |
 | Apps | `mcp.ts` | Connects MCP servers (stdio or HTTP), prefixes tool names with the server name, uses `readOnlyHint` to pick the risk |
-| Memory | `memory.ts` | `MEMORY.md` per employee, added to the system prompt |
-| Store | `store.ts` | `node:sqlite`: hires, transcript rows, policies, routines, usage |
+| What each step sends | `engine.ts` | Adds what the user said meanwhile, drops old browser pages in batches, marks the prompt for Claude's cache, prices cached tokens, turns attachments and screenshots into what each provider accepts |
+| Stop and steer | `Runtime.stop`, `Runtime.tell` | Stop aborts the model call, open cards, commands and teammates working for the task. A message sent meanwhile joins the task at its next step, or becomes the next task |
+| Fallbacks | `Runtime.runTurn` | `fallbackModels` carry on from the last finished step. Not after a failed step that already called a tool |
+| Tool search | `Runtime.buildTools` | With more than 25 app tools, they are found with `find_tools` instead of being sent every step |
+| Waiting for people | `Runtime.untilAnswered` | Cards from work someone asked for stay open. Cards from routines and webhooks (and teammates they ask) expire after `approvalTimeoutMin` (30 by default) as "not allowed" |
+| Teammates | `Runtime.delegate` | Refuses a request that would leave two employees waiting on each other |
+| Budgets | `Runtime.turn`, `pricing.ts` | Usage is saved after every step, so failed turns count and a turn stops at the step that reaches a budget. With a budget set, a model without a price is refused |
+| Web pages | `net.ts` | `web_fetch` connects only to public addresses, checked at connection time and on every redirect (`DUDE_ALLOW_PRIVATE_FETCH=1` lifts this) |
+| Child processes | `env.ts` | Commands and video renders get a clean environment without keys; add names with `DUDE_SHELL_ENV`. Known keys are scrubbed from tool output. This is not a sandbox |
+| Memory | `memory.ts` | `MEMORY.md` per employee, added to the system prompt. At 12,000 characters saving is refused until notes are merged (`memory_update`) or removed |
+| Team files | `team.ts` | Export and import. "Always allow" rules in a file are listed but never applied |
+| Store | `store.ts` | `node:sqlite`: hires, transcript rows, policies, routines and their runs, open work, usage |
 | Scheduler | `scheduler.ts` | Runs enabled routines with croner; each run is a turn from `routine:<id>` |
+| Webhooks | `packages/server` | `POST /api/hooks/<employee id>/<routine id>` with the routine's own key (`?key=`, `x-hook-key` or a bearer token). The body (up to 100 KB) reaches the employee marked as outside information |
 | Providers | `providers.ts` | Registry of 17 chat providers (Anthropic, OpenAI, Google, and OpenAI-compatible ones from Groq to 9router and Ollama) plus custom endpoints from config. Resolves `provider:model`, lists a key's models, and keeps keys saved from the UI in `.dude/secrets.env` (real env vars win) |
 | Skills | `skills.ts` | Agent Skills discovery from the pack, `.dude/skills`, the project's `.agents`/`.claude` skills and the user's global ones; `use_skill` loads a body, `read_skill_file` loads bundled files, `/name args` in a message runs one; `installSkills` copies skills from a folder or clone |
 | Media | `tools/media.ts` | fal.ai queue API: `generate_image` and `fal_run` (any model), results saved under `files/media/` |
@@ -31,7 +42,7 @@
 | Browser | `tools/browser.ts` | Packs listing `browser` get a Playwright MCP server per employee (own profile and output folder under `.dude/team/<id>/`). Browsing runs freely, clicking and typing ask, raw JS is off. After each step that changes the page the runtime takes a screenshot and emits a `screen` event |
 | Vault | `vault.ts` | AES-256-GCM logins in `.dude/vault.json` (key in `.dude/vault.key` or `DUDE_VAULT_KEY`), TOTP codes, and redaction of every tool result so saved secrets never reach the model or the transcript |
 | Connected apps | `composio.ts` | One Composio Tool Router Session per workspace; its MCP endpoint becomes `apps__*` tools for every employee (or `composioHires`); lookups auto, executes ask |
-| Social | `social.ts` | Social accounts, autopost plans (each a routine with source `autopost`), the post log, `social_publish_request` (one approval opens a 20-minute posting window for browser, vault and app tools) and `vault_fill` |
+| Social | `social.ts` | Social accounts, autopost plans (each a routine with source `autopost`), the post log, `social_publish_request` (one approval opens a 20-minute window for that post: see `posting.ts`) and `vault_fill`, which checks the browser's real address before typing |
 | Video | `tools/video.ts` | `video_render`: Remotion specs through a shared studio in `.dude/studio/remotion`, or HyperFrames projects; `generate_voiceover` (ElevenLabs or OpenAI) |
 | Telegram | `packages/server/src/telegram.ts` | Long-polling bot: pairing codes, messages to employees, approval buttons, question replies, routine reports |
 | Server | `packages/server` | `node:http` on 127.0.0.1 with a per-run token: JSON API, one SSE stream of runtime events, approvals and questions held as cards until answered, routines scheduler, serves the built web app |

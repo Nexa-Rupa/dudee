@@ -12,6 +12,8 @@ export interface RoutineSpec {
   cron: string;
   prompt: string;
   enabled?: boolean;
+  /** Run on this model instead of the employee's own. */
+  model?: string | null;
 }
 
 /** A skill in the Agent Skills format (SKILL.md + optional bundled files). */
@@ -93,6 +95,10 @@ export interface DudeConfig {
   telegram?: { allowedChats: number[]; defaultHire?: string | null; notify?: boolean };
   /** Employees that get Composio connected apps; empty or missing = everyone. */
   composioHires?: string[];
+  /** Models to try, in order, when an employee's model fails. */
+  fallbackModels: string[];
+  /** How long scheduled work waits for an approval or an answer before going on without it. */
+  approvalTimeoutMin: number;
   /** Monthly spend limit for the whole team, in US dollars; null = no limit. */
   budgetUsd: number | null;
   /** Your own model prices (per million tokens) for models dude has no price for. */
@@ -106,6 +112,17 @@ export interface ToolContext {
   /** Hire ids already in this conversation chain, to stop teammates looping. */
   chain: string[];
   signal?: AbortSignal;
+  presence?: Presence;
+  /** App tools found with find_tools in this task. */
+  foundTools?: Set<string>;
+}
+
+/** Whether someone is likely to be around to answer. Shared by a task and the work it hands to teammates. */
+export interface Presence {
+  /** Started by a routine or webhook, so nobody may be watching. */
+  unattended: boolean;
+  /** A card already expired unanswered; don't wait for the next one. */
+  gone: boolean;
 }
 
 export interface ToolDef<I = any> {
@@ -124,9 +141,18 @@ export interface ToolDef<I = any> {
 }
 
 export type Row =
-  | { kind: "message"; role: "user" | "assistant"; text: string; from?: string }
+  | {
+      kind: "message";
+      role: "user" | "assistant";
+      text: string;
+      from?: string;
+      /** Files sent with it, relative to the employee's files folder. */
+      attachments?: string[];
+      /** Joined a task already in progress. */
+      added?: boolean;
+    }
   | { kind: "tool"; tool: string; input: unknown; output?: unknown; error?: string; ms: number }
-  | { kind: "approval"; tool: string; summary: string; decision: ApprovalDecision }
+  | { kind: "approval"; tool: string; summary: string; decision: ApprovalDecision; expired?: boolean }
   | { kind: "notice"; text: string };
 
 export interface StoredRow {
@@ -139,6 +165,11 @@ export interface StoredRow {
 export type RuntimeEvent =
   | { type: "row"; hireId: string; row: StoredRow }
   | { type: "delta"; hireId: string; text: string }
+  /** The reply so far is now this (a model failed partway through a sentence). */
+  | { type: "rewind"; hireId: string; text: string }
+  /** Messages the user added that the running task hasn't read yet. */
+  | { type: "added"; hireId: string; pending: string[] }
+  | { type: "work-changed"; hireId: string }
   | { type: "status"; hireId: string; status: "working" | "tool" | "idle"; detail?: string }
   | { type: "usage"; hireId: string; model: string; inputTokens: number; outputTokens: number }
   | { type: "screen"; hireId: string; mime: string; data: string; at: string }
@@ -152,11 +183,13 @@ export interface ApprovalRequest {
   tool: string;
   input: unknown;
   summary: string;
+  /** Fires when the card expires (scheduled work only); drop it. */
+  signal?: AbortSignal;
 }
 
 export type ApprovalDecision = "allow" | "always" | "deny";
 export type ApprovalHandler = (req: ApprovalRequest) => Promise<ApprovalDecision>;
-export type AskHandler = (hire: Hire, question: string) => Promise<string | null>;
+export type AskHandler = (hire: Hire, question: string, opts?: { signal?: AbortSignal }) => Promise<string | null>;
 
 /** Billing seam: the cloud plugs a meter here; self-hosted just logs usage locally. */
 export interface UsageRecord {

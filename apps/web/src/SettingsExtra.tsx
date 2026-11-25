@@ -1,6 +1,84 @@
 import { useEffect, useState } from "react";
 import { Download, Upload } from "lucide-react";
-import { api, token } from "./api";
+import { api, token, type ProvidersView } from "./api";
+import { ModelInput, useModelOptions } from "./Settings";
+import { MemoryEditor } from "./MemoryEditor";
+
+/** Models to try when an employee's own model fails. */
+export function FallbackSettings() {
+  const [list, setList] = useState<string[] | null>(null);
+  const [next, setNext] = useState("");
+  const [view, setView] = useState<ProvidersView | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const options = useModelOptions(view, {});
+  useEffect(() => {
+    api<{ fallbackModels: string[] }>("settings").then((s) => setList(s.fallbackModels)).catch(() => setList([]));
+    api<ProvidersView>("providers").then(setView).catch(() => {});
+  }, []);
+  if (!list) return null;
+  const save = async (value: string[]) => {
+    try {
+      await api("config", { method: "PATCH", body: { fallbackModels: value } });
+      setList(value);
+      setNext("");
+      setMsg(null);
+    } catch (e) {
+      setMsg((e as Error).message);
+    }
+  };
+  return (
+    <section aria-labelledby="fallback-h">
+      <h2 id="fallback-h" className="section-h">
+        Fallback models
+      </h2>
+      <div className="panel">
+        <p className="note">
+          When an employee's model fails or hits a limit, they carry on with these, in order. With a budget set, only models with a price
+          are used.
+        </p>
+        {!!list.length && (
+          <ol className="fallbacks">
+            {list.map((m, i) => (
+              <li key={m}>
+                <code>{m}</code>
+                <span className="row-actions">
+                  <button className="btn small quiet" disabled={i === 0} onClick={() => save(list.map((x, j) => (j === i - 1 ? list[i] : j === i ? list[i - 1] : x)))}>
+                    Move up
+                  </button>
+                  <button className="btn small quiet" onClick={() => save(list.filter((x) => x !== m))}>
+                    Remove
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ol>
+        )}
+        <div className="row">
+          <ModelInput id="fallback-new" value={next} onChange={setNext} options={options.filter((o) => !list.includes(o))} placeholder="provider:model" />
+          <button className="btn" disabled={!next.trim() || list.length >= 5} onClick={() => save([...new Set([...list, next.trim()])])}>
+            Add fallback
+          </button>
+        </div>
+        {msg && <p className="error">{msg}</p>}
+      </div>
+    </section>
+  );
+}
+
+/** Facts every employee reads. */
+export function TeamMemorySettings() {
+  return (
+    <section aria-labelledby="team-memory-h">
+      <h2 id="team-memory-h" className="section-h">
+        Team memory
+      </h2>
+      <div className="panel">
+        <p className="note">Facts every employee reads: your company, your products, how you like things done. Employees ask before adding to it.</p>
+        <MemoryEditor path="memory" version={0} empty="Nothing yet." label="Team memory" />
+      </div>
+    </section>
+  );
+}
 
 /** Company goals: every employee sees them and ties their work to one. */
 export function GoalsSettings({ onChanged }: { onChanged: () => void }) {
@@ -193,14 +271,17 @@ export function TeamSettings({ onChanged }: { onChanged: () => void }) {
                 const file = e.target.files?.[0];
                 if (!file) return;
                 try {
-                  const r = await api<{ hired: Array<{ name: string }>; skipped: Array<{ name: string; reason: string }>; skills: string[] }>(
-                    "team/import",
-                    { method: "POST", body: JSON.parse(await file.text()) }
-                  );
+                  const r = await api<{
+                    hired: Array<{ name: string }>;
+                    skipped: Array<{ name: string; reason: string }>;
+                    skills: string[];
+                    notAllowed: Array<{ name: string; tools: string[] }>;
+                  }>("team/import", { method: "POST", body: JSON.parse(await file.text()) });
                   setMsg(
                     `Hired ${r.hired.map((h) => h.name).join(", ") || "nobody"}` +
                       (r.skills.length ? `; added skills ${r.skills.join(", ")}` : "") +
                       (r.skipped.length ? `; skipped ${r.skipped.map((s) => `${s.name} (${s.reason})`).join(", ")}` : "") +
+                      (r.notAllowed.length ? `; a file can't grant "always allow", so ${r.notAllowed.map((n) => `${n.name} asks before ${n.tools.join(", ")}`).join("; ")}` : "") +
                       "."
                   );
                   onChanged();

@@ -17,6 +17,8 @@ export const DEFAULT_CONFIG: DudeConfig = {
   globalSkills: true,
   extraTools: [],
   goals: [],
+  fallbackModels: [],
+  approvalTimeoutMin: 30,
   budgetUsd: null,
   prices: {},
 };
@@ -50,6 +52,8 @@ export function loadConfig(home: string): DudeConfig {
     globalSkills: raw.globalSkills ?? true,
     extraTools: raw.extraTools ?? [],
     goals: raw.goals ?? [],
+    fallbackModels: Array.isArray(raw.fallbackModels) ? raw.fallbackModels.map(String) : [],
+    approvalTimeoutMin: Number(raw.approvalTimeoutMin) > 0 ? Number(raw.approvalTimeoutMin) : DEFAULT_CONFIG.approvalTimeoutMin,
     budgetUsd: typeof raw.budgetUsd === "number" ? raw.budgetUsd : null,
     prices: { ...(raw.prices ?? {}) },
     telegram: raw.telegram ? { allowedChats: (raw.telegram.allowedChats ?? []).map(Number), defaultHire: raw.telegram.defaultHire ?? null, notify: raw.telegram.notify ?? true } : undefined,

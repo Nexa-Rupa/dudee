@@ -127,6 +127,18 @@ export function readSkillFile(skill: SkillSpec, rel: string) {
   return fs.readFileSync(full, "utf8").slice(0, 60_000);
 }
 
+/** Write a skill into the workspace, in the Agent Skills format. */
+export function saveSkill(home: string, skill: { name: string; description: string; steps: string; author: string }) {
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(skill.name) || skill.name.length > 64) throw new Error("Skill names are short and kebab-case, like weekly-report");
+  const dir = path.join(home, "skills", skill.name);
+  const file = path.join(dir, "SKILL.md");
+  const updated = fs.existsSync(file);
+  fs.mkdirSync(dir, { recursive: true });
+  const meta = YAML.stringify({ name: skill.name, description: skill.description.replace(/\s+/g, " ").trim(), author: skill.author });
+  fs.writeFileSync(file, `---\n${meta}---\n${skill.steps.trim()}\n`);
+  return { file, updated };
+}
+
 /** Copy a skill folder (or every skill in a folder) into the workspace. Returns installed names. */
 export function installSkills(fromDir: string, home: string): string[] {
   const target = path.join(home, "skills");

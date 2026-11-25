@@ -268,11 +268,17 @@ export class TelegramBridge {
     }
 
     if (text === "/start" || text === "/help") {
-      return this.send(chatId, `Write to an employee by name: "Maya: post today's tip". Commands: /team, /pending.`);
+      return this.send(chatId, `Write to an employee by name: "Maya: post today's tip". Commands: /team, /pending, /stop <name>.`);
     }
     if (text === "/team") {
       const list = this.runtime.listHires().map((h) => `• ${h.name} — ${this.runtime.packFor(h)?.title ?? h.packId}${h.paused ? " (paused)" : ""}`);
       return this.send(chatId, list.length ? list.join("\n") : "No employees yet. Hire one in the app.");
+    }
+    const stop = text.match(/^\/stop(?:\s+(.+))?$/);
+    if (stop) {
+      const who = stop[1] ? this.runtime.findHire(stop[1].trim()) : this.defaultHire(chatId);
+      if (!who) return this.send(chatId, stop[1] ? `No employee named ${stop[1].trim()}.` : "No employees yet.");
+      return this.send(chatId, this.runtime.stop(who.id) ? `${who.name} stopped.` : `${who.name} isn't working on anything.`);
     }
     if (text === "/pending") {
       const cards = this.hooks.approvals();

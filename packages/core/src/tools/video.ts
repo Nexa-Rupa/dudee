@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { z } from "zod";
+import { childEnv } from "../env.js";
 import type { ToolContext, ToolDef } from "../types.js";
 import {
   HYPERFRAMES_VERSION,
@@ -29,7 +30,7 @@ interface RunResult {
 
 function run(cmd: string, args: string[], cwd: string, timeoutMs: number, signal?: AbortSignal): Promise<RunResult> {
   return new Promise((resolve) => {
-    const child = spawn(cmd, args, { cwd, windowsHide: true, shell: process.platform === "win32", env: { ...process.env, CI: "1" } });
+    const child = spawn(cmd, args, { cwd, windowsHide: true, shell: process.platform === "win32", env: childEnv({ CI: "1" }) });
     let out = "";
     const add = (b: Buffer) => {
       out = (out + b.toString()).slice(-20_000);

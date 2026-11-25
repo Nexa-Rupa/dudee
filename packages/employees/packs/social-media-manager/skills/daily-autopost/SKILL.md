@@ -34,6 +34,8 @@ license: MIT
 
 6. **Publish.** Call `social_publish_request` with the account id, the exact text and the media paths.
    - If it is declined, stop: save the draft and say it is ready for later.
+   - The approval covers that account's site, the exact text and title, and those files. Type the text exactly as
+     approved; anything else asks the user again.
    - If approved, follow the `next` steps it returns. For browser accounts read
      `references/platform-playbooks.md` for that platform's flow.
    - Sign in with `vault_fill` (username, then password, then `otp` if a code is asked). Take a

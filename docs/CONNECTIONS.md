@@ -25,9 +25,13 @@ generate_image           an image, or
 generate_voiceover       a voiceover, then
 video_render             a video she builds herself (Remotion spec or HyperFrames HTML)
 social_publish_request   one approval card with the exact text and files (skipped when "post without asking")
-vault_fill + browser_*   sign in and publish (no further prompts for 20 minutes, only for this post)
+vault_fill + browser_*   sign in and publish (no further prompts for 20 minutes, only for this post on this site)
 social_record_post       the live URL, shown under Recent posts
 ```
+
+What an approved post covers: steps on that account's own site, typing the approved text or title, uploading the
+approved files, or posting them through that account's connected app. Anything else asks again. `vault_fill` types a
+login only on the account's own https site, and a password only into a password field of the page itself.
 
 **Post now** on an account runs today's post at once. Approval cards also go to Telegram if it is paired, so you can
 approve from your phone.
@@ -74,7 +78,7 @@ action. To limit apps to some employees, set `composioHires: [Maya]` in `.dude/c
 Then:
 
 - `Maya: post a behind-the-scenes clip today` talks to Maya; a message without a name goes to the default employee
-  (or the last one you talked to). `/team` lists everyone, `/pending` resends waiting approvals.
+  (or the last one you talked to). `/team` lists everyone, `/pending` resends waiting approvals, `/stop Maya` stops her task.
 - Approval cards arrive with **Allow / Always allow / Don't allow** buttons.
 - An employee's question arrives as a message; reply to it to answer.
 - What routines and daily posts did is sent to you (turn off with "Send me what routines and daily posts did").

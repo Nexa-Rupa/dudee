@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { api, type HireView, type PackView, type ProvidersView, type Routine, type Screen, type SkillView } from "./api";
+import { api, fileKind, fileUrl, type HireView, type PackView, type ProvidersView, type Routine, type RoutineRun, type Screen, type SkillView, type WorkItem } from "./api";
 import { ModelInput, useModelOptions } from "./Settings";
 import { Markdown } from "./markdown";
-import { ArrowLeft, Pause, Play, X } from "lucide-react";
-import { allowLabel, timeOf, usd } from "./ui";
+import { ArrowLeft, Copy, Download, Pause, Play, Plus, Trash2, X } from "lucide-react";
+import { allowLabel, duration, timeOf, usd } from "./ui";
+import { MemoryEditor } from "./MemoryEditor";
 
-type Tab = "screen" | "files" | "memory" | "routines" | "about";
+type Tab = "screen" | "files" | "work" | "memory" | "routines" | "about";
 
 export function Details(props: {
   hire: HireView;
@@ -17,7 +18,7 @@ export function Details(props: {
   onClose: () => void;
 }) {
   const { hire } = props;
-  const tabs: Tab[] = hire.hasBrowser ? ["screen", "files", "memory", "routines", "about"] : ["files", "memory", "routines", "about"];
+  const tabs: Tab[] = [...(hire.hasBrowser ? (["screen"] as const) : []), "files", "work", "memory", "routines", "about"];
   const [tab, setTab] = useState<Tab>(props.initialTab ?? tabs[0]);
   useEffect(() => setTab(props.initialTab ?? tabs[0]), [hire.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -36,7 +37,15 @@ export function Details(props: {
       <div className="tab-body">
         {tab === "screen" && <ScreenTab hire={hire} screen={props.screen} />}
         {tab === "files" && <FilesTab hire={hire} version={props.version} />}
-        {tab === "memory" && <MemoryTab hire={hire} version={props.version} />}
+        {tab === "work" && <WorkTab hire={hire} version={props.version} />}
+        {tab === "memory" && (
+          <MemoryEditor
+            path={`hires/${hire.id}/memory`}
+            version={props.version}
+            empty={`Facts ${hire.name} learns about your company and preferences show up here.`}
+            label={`What ${hire.name} remembers`}
+          />
+        )}
         {tab === "routines" && <RoutinesTab hire={hire} version={props.version} />}
         {tab === "about" && <AboutTab hire={hire} pack={props.pack} onFired={props.onFired} />}
       </div>
@@ -63,7 +72,7 @@ function ScreenTab({ hire, screen }: { hire: HireView; screen: Screen | null }) 
 
 function FilesTab({ hire, version }: { hire: HireView; version: number }) {
   const [files, setFiles] = useState<Array<{ path: string; size: number; modified: string }>>([]);
-  const [open, setOpen] = useState<{ path: string; text: string } | null>(null);
+  const [open, setOpen] = useState<{ path: string; text: string | null } | null>(null);
   useEffect(() => {
     api<typeof files>(`hires/${hire.id}/files`).then(setFiles).catch(() => setFiles([]));
   }, [hire.id, version]);
@@ -72,11 +81,16 @@ function FilesTab({ hire, version }: { hire: HireView; version: number }) {
   if (open) {
     return (
       <div className="file-view">
-        <button className="btn quiet small" onClick={() => setOpen(null)}>
-          <ArrowLeft size={14} aria-hidden /> All files
-        </button>
+        <div className="file-bar">
+          <button className="btn quiet small" onClick={() => setOpen(null)}>
+            <ArrowLeft size={14} aria-hidden /> All files
+          </button>
+          <a className="btn small" href={fileUrl(hire.id, open.path, true)} download>
+            <Download size={14} aria-hidden /> Download
+          </a>
+        </div>
         <h3>{open.path}</h3>
-        {open.path.endsWith(".md") ? <Markdown text={open.text} /> : <pre>{open.text}</pre>}
+        <FileBody hireId={hire.id} path={open.path} text={open.text} />
       </div>
     );
   }
@@ -87,9 +101,12 @@ function FilesTab({ hire, version }: { hire: HireView; version: number }) {
         <li key={f.path}>
           <button
             onClick={() =>
-              api<{ path: string; text: string }>(`hires/${hire.id}/files?path=${encodeURIComponent(f.path)}`).then(setOpen)
+              fileKind(f.path) === "other"
+                ? api<{ path: string; text: string | null }>(`hires/${hire.id}/files?path=${encodeURIComponent(f.path)}`).then(setOpen)
+                : setOpen({ path: f.path, text: null })
             }
           >
+            {fileKind(f.path) === "image" && <img className="file-thumb" src={fileUrl(hire.id, f.path)} alt="" loading="lazy" />}
             <span className="file-name">{f.path}</span>
             <span className="file-meta">{new Date(f.modified).toLocaleDateString()}</span>
           </button>
@@ -99,19 +116,87 @@ function FilesTab({ hire, version }: { hire: HireView; version: number }) {
   );
 }
 
-function MemoryTab({ hire, version }: { hire: HireView; version: number }) {
+function FileBody({ hireId, path, text }: { hireId: string; path: string; text: string | null }) {
+  const url = fileUrl(hireId, path);
+  switch (fileKind(path)) {
+    case "image":
+      return <img className="file-media" src={url} alt={path} />;
+    case "video":
+      return <video className="file-media" src={url} controls preload="metadata" />;
+    case "audio":
+      return <audio className="file-media" src={url} controls />;
+    case "pdf":
+      return (
+        <a className="btn" href={url} target="_blank" rel="noreferrer">
+          Open the PDF
+        </a>
+      );
+  }
+  if (text === null) return <p className="empty">This file can't be shown here. Download it to open it.</p>;
+  return path.endsWith(".md") ? <Markdown text={text} /> : <pre>{text}</pre>;
+}
+
+/** What the employee still has to do: theirs and what you give them. */
+function WorkTab({ hire, version }: { hire: HireView; version: number }) {
+  const [items, setItems] = useState<WorkItem[]>([]);
   const [text, setText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const load = () => api<WorkItem[]>(`hires/${hire.id}/work`).then(setItems).catch(() => setItems([]));
   useEffect(() => {
-    api<{ text: string }>(`hires/${hire.id}/memory`).then((m) => setText(m.text)).catch(() => setText(""));
-  }, [hire.id, version]);
-  const entries = text.split("\n").filter((l) => l.startsWith("- ")).map((l) => l.slice(2));
-  if (!entries.length) return <p className="empty">Facts {hire.name} learns about your company and preferences show up here.</p>;
-  return (
-    <ul className="memory">
-      {entries.map((e, i) => (
-        <li key={i}>{e}</li>
+    load();
+  }, [hire.id, version]); // eslint-disable-line react-hooks/exhaustive-deps
+  const change = async (path: string, init: { method: string; body?: unknown }) => {
+    setError(null);
+    try {
+      await api(`hires/${hire.id}/work${path}`, init);
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+  const open = items.filter((i) => i.status === "open");
+  const done = items.filter((i) => i.status === "done");
+  const list = (group: WorkItem[]) => (
+    <ul className="work-list">
+      {group.map((i) => (
+        <li key={i.id} className={i.status}>
+          <label className="switch">
+            <input type="checkbox" checked={i.status === "done"} onChange={(e) => change(`/${i.id}`, { method: "PATCH", body: { done: e.target.checked } })} />
+            <span>{i.text}</span>
+          </label>
+          <button className="icon-btn" onClick={() => change(`/${i.id}`, { method: "DELETE" })} aria-label={`Remove: ${i.text}`}>
+            <Trash2 size={15} aria-hidden />
+          </button>
+        </li>
       ))}
     </ul>
+  );
+  return (
+    <div className="work-tab">
+      <form
+        className="row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!text.trim()) return;
+          setText("");
+          change("", { method: "POST", body: { text } });
+        }}
+      >
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={`Add work for ${hire.name}`} aria-label="New work item" />
+        <button className="btn" disabled={!text.trim()}>
+          <Plus size={14} aria-hidden /> Add
+        </button>
+      </form>
+      {error && <p className="error">{error}</p>}
+      {open.length ? list(open) : <p className="empty">Nothing open. {hire.name} adds what they start and can't finish yet.</p>}
+      {!!done.length && (
+        <details>
+          <summary>{done.length} done</summary>
+          {list(done)}
+        </details>
+      )}
+      <p className="note">{hire.name} sees this list with every task. It doesn't start work by itself: ask in chat, or set a routine.</p>
+    </div>
   );
 }
 
@@ -145,6 +230,7 @@ function RoutinesTab({ hire, version }: { hire: HireView; version: number }) {
           </label>
           <code className="cron">{r.cron}</code>
           <p>{r.prompt}</p>
+          <RoutineMore hire={hire} r={r} version={version} onChanged={load} />
           <div className="routine-foot">
             <span className="file-meta">{r.lastRunAt ? `Last ran ${new Date(r.lastRunAt).toLocaleString()}` : "Hasn't run yet"}</span>
             <button
@@ -165,6 +251,98 @@ function RoutinesTab({ hire, version }: { hire: HireView; version: number }) {
         Routines run while <code>dudee ui</code> or <code>dudee start</code> is running.
       </li>
     </ul>
+  );
+}
+
+const RUN_WORD: Record<RoutineRun["status"], string> = { running: "Running", done: "Done", failed: "Failed", stopped: "Stopped", interrupted: "Interrupted" };
+const TRIGGER_WORD: Record<RoutineRun["trigger"], string> = { schedule: "on schedule", manual: "run by you", webhook: "by webhook" };
+
+/** A routine's history, its own model and its webhook. */
+function RoutineMore({ hire, r, version, onChanged }: { hire: HireView; r: Routine; version: number; onChanged: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [runs, setRuns] = useState<RoutineRun[]>([]);
+  const [model, setModel] = useState(r.model ?? "");
+  const [view, setView] = useState<ProvidersView | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const options = useModelOptions(view, {});
+  const path = `hires/${hire.id}/routines/${encodeURIComponent(r.id)}`;
+  useEffect(() => {
+    if (!open) return;
+    api<RoutineRun[]>(`${path}/runs`).then(setRuns).catch(() => setRuns([]));
+    if (!view) api<ProvidersView>("providers").then(setView).catch(() => {});
+  }, [open, version, r.lastRunAt]); // eslint-disable-line react-hooks/exhaustive-deps
+  const patch = async (body: object, ok: string | null) => {
+    try {
+      await api(path, { method: "PATCH", body });
+      setMsg(ok);
+      onChanged();
+    } catch (e) {
+      setMsg((e as Error).message);
+    }
+  };
+  const hookUrl = `${location.origin}/api/hooks/${hire.id}/${encodeURIComponent(r.id)}?key=${r.hookKey}`;
+  return (
+    <details className="routine-more" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary>History, model and webhook</summary>
+      {open && (
+        <div className="routine-more-body">
+          {runs.length ? (
+            <ul className="runs">
+              {runs.map((run) => (
+                <li key={run.id} className={run.status}>
+                  <p>
+                    <strong>{RUN_WORD[run.status]}</strong> {TRIGGER_WORD[run.trigger]} · {new Date(run.startedAt).toLocaleString()}
+                    {run.endedAt && <span className="num"> · {duration(Date.parse(run.endedAt) - Date.parse(run.startedAt))}</span>}
+                  </p>
+                  {run.summary && <p className="run-summary">{run.summary}</p>}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="note">No runs yet.</p>
+          )}
+          <label className="field" htmlFor={`rm-${r.id}`}>
+            <span>Model for this routine</span>
+          </label>
+          <div className="row">
+            <ModelInput id={`rm-${r.id}`} value={model} onChange={setModel} options={options} placeholder={`same as ${hire.name}`} />
+            <button className="btn" onClick={() => patch({ model: model.trim() || null }, "Model saved")}>
+              Save
+            </button>
+          </div>
+          {r.hookKey ? (
+            <>
+              <p className="note">
+                POST to this address to run it. What you send reaches {hire.name} as information. The address works like a password for this
+                one routine.
+              </p>
+              <div className="row">
+                <input readOnly value={hookUrl} aria-label="Webhook address" onFocus={(e) => e.target.select()} />
+                <button
+                  className="btn"
+                  onClick={() => navigator.clipboard.writeText(hookUrl).then(() => setMsg("Copied"), () => setMsg("Select the address and copy it"))}
+                >
+                  <Copy size={14} aria-hidden /> Copy
+                </button>
+              </div>
+              <div className="row-actions">
+                <button className="btn small" onClick={() => patch({ webhook: true }, "New address made; the old one stopped working")}>
+                  New address
+                </button>
+                <button className="btn small quiet" onClick={() => patch({ webhook: false }, "Webhook off")}>
+                  Turn off webhook
+                </button>
+              </div>
+            </>
+          ) : (
+            <button className="btn small" onClick={() => patch({ webhook: true }, null)}>
+              Make a webhook
+            </button>
+          )}
+          {msg && <p className="note">{msg}</p>}
+        </div>
+      )}
+    </details>
   );
 }
 

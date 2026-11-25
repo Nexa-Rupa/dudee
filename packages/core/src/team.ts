@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Runtime } from "./runtime.js";
-import type { Policy } from "./types.js";
 
 /**
  * A shareable team: company profile, goals, workspace instructions and skills, and each employee
@@ -21,10 +20,11 @@ export interface TeamFile {
     packId: string;
     model: string | null;
     budgetUsd: number | null;
-    routines: Array<{ id: string; cron: string; prompt: string; enabled: boolean; source: "pack" | "user" }>;
+    routines: Array<{ id: string; cron: string; prompt: string; enabled: boolean; source: "pack" | "user"; model?: string | null }>;
     allowed: string[];
     memory?: string;
   }>;
+  teamMemory?: string;
 }
 
 const MAX_FILE = 200_000;
@@ -54,10 +54,11 @@ export function exportTeam(runtime: Runtime, opts: { withMemory?: boolean } = {}
       packId: h.packId,
       model: h.model,
       budgetUsd: h.budgetUsd,
-      routines: runtime.store.routines(h.id).filter((r) => r.source !== "autopost").map((r) => ({ id: r.id, cron: r.cron, prompt: r.prompt, enabled: r.enabled, source: r.source as "pack" | "user" })),
+      routines: runtime.store.routines(h.id).filter((r) => r.source !== "autopost").map((r) => ({ id: r.id, cron: r.cron, prompt: r.prompt, enabled: r.enabled, source: r.source as "pack" | "user", model: r.model ?? null })),
       allowed: runtime.store.policies(h.id).filter((p) => p.policy === "auto").map((p) => p.tool),
-      memory: opts.withMemory ? runtime.memoryFor(h).read() || undefined : undefined,
+      memory: opts.withMemory ? runtime.memoryFor(h).text() || undefined : undefined,
     })),
+    teamMemory: opts.withMemory ? runtime.teamMemory().text() || undefined : undefined,
   };
 }
 
@@ -77,13 +78,15 @@ export interface ImportResult {
   hired: Array<{ name: string; packId: string }>;
   skipped: Array<{ name: string; reason: string }>;
   skills: string[];
+  /** "Always allow" rules in the file that were not applied; these tools ask again here. */
+  notAllowed: Array<{ name: string; tools: string[] }>;
 }
 
 /** Add a team to this workspace. Existing employees stay; name clashes get a number. */
 export function importTeam(runtime: Runtime, data: unknown): ImportResult {
   const team = data as TeamFile;
   if (!team || team.format !== "dudee-team" || team.version !== 1) throw new Error("This isn't a dudee team file.");
-  const result: ImportResult = { hired: [], skipped: [], skills: [] };
+  const result: ImportResult = { hired: [], skipped: [], skills: [], notAllowed: [] };
 
   const cfg = runtime.config;
   cfg.company = { ...team.company, ...stripEmpty(cfg.company) };
@@ -105,6 +108,8 @@ export function importTeam(runtime: Runtime, data: unknown): ImportResult {
   }
   runtime.reloadSkills();
 
+  for (const line of (team.teamMemory ?? "").split(/\r?\n/)) if (line.startsWith("- ")) runtime.teamMemory().save(line.slice(2), { force: true });
+
   for (const e of team.employees ?? []) {
     if (!runtime.packs.has(e.packId)) {
       result.skipped.push({ name: e.name, reason: `role "${e.packId}" isn't installed` });
@@ -116,9 +121,10 @@ export function importTeam(runtime: Runtime, data: unknown): ImportResult {
     for (const r of e.routines ?? []) {
       runtime.store.upsertRoutine({ ...r, hireId: hire.id, lastRunAt: null });
     }
-    for (const tool of e.allowed ?? []) runtime.store.setPolicy(hire.id, tool, "auto" as Policy);
+    // A file can't grant permissions: whoever imports it gives their own "always allow" as the work comes up.
+    if (e.allowed?.length) result.notAllowed.push({ name, tools: e.allowed.map(String) });
     if (e.memory) {
-      for (const line of e.memory.split(/\r?\n/)) if (line.startsWith("- ")) runtime.memoryFor(hire).save(line.slice(2));
+      for (const line of e.memory.split(/\r?\n/)) if (line.startsWith("- ")) runtime.memoryFor(hire).save(line.slice(2), { force: true });
     }
     result.hired.push({ name, packId: e.packId });
   }

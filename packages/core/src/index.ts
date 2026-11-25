@@ -1,8 +1,12 @@
 export * from "./types.js";
 export { Runtime, errorText, type RuntimeOptions, type SendOptions } from "./runtime.js";
 export { Scheduler } from "./scheduler.js";
-export { Store, type StoredRoutine } from "./store.js";
-export { Memory } from "./memory.js";
+export { Store, type StoredRoutine, type RoutineRun, type WorkItem } from "./store.js";
+export { StepMessages, portable, searchTools, stepUsage, toolOutput, userContent, IMAGE_TYPES } from "./engine.js";
+export { Memory, MEMORY_LIMIT } from "./memory.js";
+export { fetchPublic, isPublicAddress } from "./net.js";
+export { childEnv } from "./env.js";
+export { onAccountSite, postingVerdict, type PostingWindow } from "./posting.js";
 export { McpHub, type McpSource } from "./mcp.js";
 export { PLAYWRIGHT_MCP, browserServer, browserPolicy } from "./tools/browser.js";
 export { loadPack, loadPacks } from "./packs.js";

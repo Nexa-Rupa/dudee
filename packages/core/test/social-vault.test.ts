@@ -142,10 +142,19 @@ test("publishing asks first, then opens a posting window for the browser", async
   const ctx = { hire: maya, pack, runtime, chain: [] };
   const click = { name: "browser_click", description: "", input: { jsonSchema: {} }, risk: "write" as const, defaultPolicy: "ask" as const, execute: async () => null };
   const evaluate = { ...click, name: "browser_evaluate", defaultPolicy: "deny" as const };
-  assert.equal(runtime.policyFor(ctx, click), "auto");
+  let page = "https://www.instagram.com/";
+  runtime.browserPage = async () => ({ url: page, refPrefix: "" });
+  assert.equal(await runtime.postingAllows(ctx, click, {}), true);
+  assert.equal(await runtime.postingAllows(ctx, { ...click, name: "browser_type" }, { text: "Morning tip: grind fresh." }), true);
+  assert.equal(await runtime.postingAllows(ctx, { ...click, name: "browser_type" }, { text: "something else" }), false);
+  assert.equal(await runtime.postingAllows(ctx, { ...click, alwaysAsk: true }, {}), false);
   assert.equal(runtime.policyFor(ctx, evaluate), "deny");
-  runtime.closePostingWindow(maya.id);
-  assert.equal(runtime.policyFor(ctx, click), "ask");
+  page = "https://evil.example/";
+  assert.equal(await runtime.postingAllows(ctx, click, {}), false);
+  page = "https://www.instagram.com/";
+  // a finished post, posted or failed, ends it
+  await TOOL_GROUPS.social.find((t) => t.name === "social_record_post")!.execute({ postId: posts[0].id, status: "failed", error: "captcha" }, ctx);
+  assert.equal(await runtime.postingAllows(ctx, click, {}), false);
   runtime.store.close();
 });
 

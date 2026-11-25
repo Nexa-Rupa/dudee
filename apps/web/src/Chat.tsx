@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowUp, Check, ChevronDown, ChevronRight, CircleAlert, LoaderCircle, Hourglass } from "lucide-react";
-import { api, type AppState, type Approval, type HireView, type Question, type SkillView, type StoredRow } from "./api";
+import { ArrowUp, Check, ChevronDown, ChevronRight, CircleAlert, FileText, LoaderCircle, Hourglass, Paperclip, Square, X } from "lucide-react";
+import { api, fileKind, fileUrl, upload, type AppState, type Approval, type HireView, type Question, type SkillView, type StoredRow } from "./api";
 import { Markdown } from "./markdown";
 import { ApprovalSlip, QuestionSlip } from "./Slips";
 import { Avatar, STATUS_LABEL, StatusMark, duration, empNo, plainSummary, roleStyle, statusOf, stepHint, stepLabel, timeOf, useTick } from "./ui";
@@ -17,7 +17,9 @@ function toTurns(rows: StoredRow[]): Turn[] {
   const turns: Turn[] = [];
   let cur: Turn | null = null;
   for (const r of rows) {
-    if (r.row.kind === "message" && r.row.role === "user") {
+    if (r.row.kind === "message" && r.row.added && cur) {
+      cur.steps.push(r);
+    } else if (r.row.kind === "message" && r.row.role === "user") {
       cur = { key: r.seq, ask: r, steps: [] };
       turns.push(cur);
     } else if (r.row.kind === "message") {
@@ -106,7 +108,7 @@ export function Chat(props: {
         </div>
       </div>
 
-      <Composer hire={hire} busy={!!live} />
+      <Composer key={hire.id} hire={hire} busy={!!live} />
     </section>
   );
 }
@@ -143,8 +145,31 @@ function TurnView({ turn, hire, live, waiting }: { turn: Turn; hire: HireView; l
           <div className="bubble">
             <Markdown text={turn.ask.row.text} />
           </div>
+          {!!turn.ask.row.attachments?.length && <Attachments hireId={hire.id} paths={turn.ask.row.attachments} />}
         </div>
       )}
+
+      {turn.steps.map(
+        (s) =>
+          s.row.kind === "message" && (
+            <div className="msg user" key={s.seq}>
+              <p className="msg-meta">
+                You, while they worked · <time>{timeOf(s.at)}</time>
+              </p>
+              <div className="bubble">
+                <Markdown text={s.row.text} />
+              </div>
+            </div>
+          )
+      )}
+      {live?.pending?.map((text, i) => (
+        <div className="msg user pending" key={`p${i}`}>
+          <p className="msg-meta">{hire.name} reads this at the next step</p>
+          <div className="bubble">
+            <Markdown text={text} />
+          </div>
+        </div>
+      ))}
 
       {(turn.steps.length > 0 || live) && (
         <div className={`work${live ? (waiting ? " waiting" : " live") : ""}`}>
@@ -200,6 +225,31 @@ function TurnView({ turn, hire, live, waiting }: { turn: Turn; hire: HireView; l
   );
 }
 
+/** Files sent with a message: pictures as thumbnails, the rest by name. */
+function Attachments({ hireId, paths }: { hireId: string; paths: string[] }) {
+  return (
+    <ul className="attached">
+      {paths.map((p) => (
+        <li key={p}>
+          <a href={fileUrl(hireId, p)} target="_blank" rel="noreferrer">
+            {fileKind(p) === "image" ? (
+              <img src={fileUrl(hireId, p)} alt={fileName(p)} loading="lazy" />
+            ) : (
+              <span className="attached-file">
+                <FileText size={14} aria-hidden /> {fileName(p)}
+              </span>
+            )}
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function fileName(path: string) {
+  return path.split("/").pop() ?? path;
+}
+
 function fromLabel(from: string) {
   return from.startsWith("routine:") ? `Routine · ${from.slice(8)}` : from;
 }
@@ -209,7 +259,7 @@ function Step({ row, longest }: { row: StoredRow; longest: number }) {
   const [open, setOpen] = useState(false);
   const r = row.row;
   if (r.kind === "approval") {
-    const word = r.decision === "deny" ? "You declined" : r.decision === "always" ? "You always allowed" : "You allowed";
+    const word = r.expired ? "Nobody answered" : r.decision === "deny" ? "You declined" : r.decision === "always" ? "You always allowed" : "You allowed";
     return (
       <li className={`step decision ${r.decision}`}>
         {word}: {plainSummary(r.summary)}
@@ -241,7 +291,31 @@ function Composer({ hire, busy }: { hire: HireView; busy: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [skills, setSkills] = useState<SkillView[]>([]);
   const [active, setActive] = useState(0);
+  const [files, setFiles] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
+  const picker = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!busy) setStopping(false);
+  }, [busy]);
+
+  const attach = async (list: File[]) => {
+    setError(null);
+    for (const file of list.slice(0, 10)) {
+      setUploading((n) => n + 1);
+      try {
+        const path = await upload(hire.id, file);
+        setFiles((all) => [...all, path].slice(0, 10));
+      } catch (e) {
+        setError(`${file.name}: ${(e as Error).message}`);
+      } finally {
+        setUploading((n) => n - 1);
+      }
+    }
+  };
 
   useEffect(() => {
     ref.current?.focus();
@@ -264,13 +338,26 @@ function Composer({ hire, busy }: { hire: HireView; busy: boolean }) {
 
   const send = async () => {
     const value = text.trim();
-    if (!value) return;
+    const sent = files;
+    if ((!value && !sent.length) || uploading) return;
     setText("");
+    setFiles([]);
     setError(null);
     try {
-      await api(`hires/${hire.id}/messages`, { method: "POST", body: { text: value } });
+      await api(`hires/${hire.id}/messages`, { method: "POST", body: { text: value, attachments: sent } });
     } catch (e) {
       setText(value);
+      setFiles(sent);
+      setError((e as Error).message);
+    }
+  };
+
+  const stop = async () => {
+    setStopping(true);
+    try {
+      await api(`hires/${hire.id}/stop`, { method: "POST" });
+    } catch (e) {
+      setStopping(false);
       setError((e as Error).message);
     }
   };
@@ -303,7 +390,52 @@ function Composer({ hire, busy }: { hire: HireView; busy: boolean }) {
           {hire.name}'s model ({hire.model}) has no key yet. Connect the provider in Settings.
         </p>
       )}
-      <div className="composer-box">
+      {(files.length > 0 || uploading > 0) && (
+        <ul className="to-send" aria-label="Attached files">
+          {files.map((f) => (
+            <li key={f}>
+              {fileKind(f) === "image" ? <img src={fileUrl(hire.id, f)} alt="" /> : <FileText size={14} aria-hidden />}
+              <span>{fileName(f)}</span>
+              <button type="button" onClick={() => setFiles(files.filter((x) => x !== f))} aria-label={`Remove ${fileName(f)}`}>
+                <X size={13} aria-hidden />
+              </button>
+            </li>
+          ))}
+          {uploading > 0 && (
+            <li>
+              <LoaderCircle size={14} className="spin" aria-hidden /> <span>Uploading…</span>
+            </li>
+          )}
+        </ul>
+      )}
+      <div
+        className={`composer-box${dragging ? " dragging" : ""}`}
+        onDragOver={(e) => {
+          if (!e.dataTransfer.types.includes("Files")) return;
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          if (!e.dataTransfer.files.length) return;
+          e.preventDefault();
+          setDragging(false);
+          attach([...e.dataTransfer.files]);
+        }}
+      >
+        <input
+          ref={picker}
+          type="file"
+          multiple
+          hidden
+          onChange={(e) => {
+            attach([...(e.target.files ?? [])]);
+            e.target.value = "";
+          }}
+        />
+        <button type="button" className="attach" onClick={() => picker.current?.click()} aria-label="Attach files" title="Attach files">
+          <Paperclip size={18} aria-hidden />
+        </button>
         {matches.length > 0 && (
           <ul className="slash-menu" role="listbox" aria-label="Skills">
             {matches.map((s, i) => (
@@ -331,6 +463,12 @@ function Composer({ hire, busy }: { hire: HireView; busy: boolean }) {
           onChange={(e) => {
             setText(e.target.value);
             setActive(0);
+          }}
+          onPaste={(e) => {
+            const pasted = [...e.clipboardData.files];
+            if (!pasted.length) return;
+            e.preventDefault();
+            attach(pasted);
           }}
           onKeyDown={(e) => {
             if (matches.length) {
@@ -360,10 +498,15 @@ function Composer({ hire, busy }: { hire: HireView; busy: boolean }) {
             }
           }}
           rows={1}
-          placeholder={busy ? `${hire.name} is working. Your message goes next.` : `Brief ${hire.name}, or type / for a skill`}
+          placeholder={busy ? `Add something while ${hire.name} works` : `Brief ${hire.name}, or type / for a skill`}
           aria-label={`Message ${hire.name}`}
         />
-        <button className="send" disabled={!text.trim()} aria-label="Send">
+        {busy && (
+          <button type="button" className="stop" onClick={stop} disabled={stopping} aria-label={`Stop ${hire.name}`} title={`Stop ${hire.name}`}>
+            <Square size={14} fill="currentColor" aria-hidden />
+          </button>
+        )}
+        <button className="send" disabled={(!text.trim() && !files.length) || uploading > 0} aria-label="Send">
           <ArrowUp size={18} aria-hidden />
         </button>
       </div>
