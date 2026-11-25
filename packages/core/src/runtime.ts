@@ -446,7 +446,7 @@ export class Runtime {
       const streamed = { steps: 0, input: 0, billed: 0, output: 0 };
       const user = userContent(ask, root, attachments, id, media);
       const base: ModelMessage[] = [system, ...history, { role: "user", content: user.content }, ...after];
-      let done: ModelMessage[] = []; // finished steps of this attempt
+      const finished: ModelMessage[][] = []; // everything said and done, as of each step of this attempt
       let replyAtStep = reply.length;
       let callsInStep = 0;
 
@@ -463,7 +463,7 @@ export class Runtime {
             activeTools: hidden.size ? Object.keys(tools).filter((t) => !hidden.has(t) || ctx.foundTools!.has(t)) : undefined,
           }),
           onStepFinish: (step) => {
-            done = step.response.messages as ModelMessage[];
+            finished.push(step.response.messages as ModelMessage[]);
           },
           stopWhen: ({ steps }) => {
             const sum = { input: 0, billed: 0, output: 0 };
@@ -548,6 +548,8 @@ export class Runtime {
         if (withoutMedia || (canRetry && m + 1 < models.length)) {
           // fold over everything after the fixed start, so added messages keep their place
           const start = history.length + 2;
+          // The SDK may already have closed the failed step too; count only the ones that ended before the error.
+          const done = streamed.steps ? (finished[streamed.steps - 1] ?? []) : [];
           after = portable(stepMessages.fold([...base, ...done]).slice(start));
           if (reply.length > replyAtStep) {
             reply = reply.slice(0, replyAtStep);

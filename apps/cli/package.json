@@ -26,7 +26,7 @@
     "@ai-sdk/google": "2.0.111",
     "@ai-sdk/openai": "2.0.143",
     "@ai-sdk/openai-compatible": "1.0.63",
-    "@modelcontextprotocol/sdk": "1.20.2",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "ai": "5.0.289",
     "commander": "13.1.0",
     "croner": "9.1.0",
