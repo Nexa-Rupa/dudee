@@ -44,7 +44,8 @@ import { randomBytes } from "node:crypto";
 // The published package carries the built web app in ./web next to ./dist; in the repo it comes from apps/web.
 const bundledWeb = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "web");
 const webDir = fs.existsSync(path.join(bundledWeb, "index.html")) ? bundledWeb : devWebDir;
-const VERSION = "2.2.0";
+/** Read from package.json (one folder up from both src/ and dist/), so it can't drift from the published version. */
+const VERSION: string = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
 
 try {
   process.loadEnvFile(".env");
