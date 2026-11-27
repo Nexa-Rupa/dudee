@@ -43,9 +43,10 @@ export function statusOf(state: AppState, h: HireView): Status {
 
 export const STATUS_LABEL: Record<Status, string> = { needs: "Needs you", working: "Working", idle: "Idle", paused: "Paused" };
 
-/** Dollars for people: $0.42, $12.50, $1,240. */
+/** Dollars for people: $0.0031, $0.42, $12.50, $1,240. Spend under a cent keeps its digits so it doesn't read as nothing. */
 export function usd(n: number) {
-  return n >= 1000 ? `$${Math.round(n).toLocaleString()}` : `$${n.toFixed(2)}`;
+  if (n >= 1000) return `$${Math.round(n).toLocaleString()}`;
+  return n > 0 && n < 0.01 ? `$${n.toPrecision(2)}` : `$${n.toFixed(2)}`;
 }
 
 /** The badge's status mark: solid when working, striped when it needs you, ring when idle, bars when paused. */

@@ -6,7 +6,7 @@ import path from "node:path";
 import { simulateReadableStream } from "ai";
 import { MockLanguageModelV2 } from "ai/test";
 import { packsDir } from "@dude/employees";
-import { DEFAULT_CONFIG, Runtime, costOf, exportTeam, importTeam, priceFor } from "../src/index.js";
+import { DEFAULT_CONFIG, Runtime, clearProviderPrices, costOf, exportTeam, importTeam, parseOpenRouterPrices, priceFor } from "../src/index.js";
 
 /** A model that always answers "ok" and reports the given token usage. */
 function model(inputTokens: number, outputTokens: number, seen?: { prompt: string }) {
@@ -44,6 +44,70 @@ test("known prices, your own prices, and free local models", () => {
   assert.deepEqual(priceFor("ollama:qwen3", cfg), { in: 0, out: 0 });
   assert.equal(priceFor("openai:gpt-5", cfg), null);
   assert.equal(costOf("anthropic:claude-opus-5-5", 1_000_000, 100_000, cfg), 6);
+});
+
+test("OpenRouter's price list reads as dollars per million tokens, without per-request models", () => {
+  const prices = parseOpenRouterPrices({
+    data: [
+      { id: "openai/gpt-4o-mini", pricing: { prompt: "0.00000015", completion: "0.0000006" } },
+      { id: "meta-llama/llama-3.3-70b:free", pricing: { prompt: "0", completion: "0" } },
+      { id: "openrouter/auto", pricing: { prompt: "-1", completion: "-1" } },
+      { id: "no-pricing" },
+    ],
+  });
+  assert.deepEqual(prices, {
+    "openai/gpt-4o-mini": { in: 0.15, out: 0.6 },
+    "meta-llama/llama-3.3-70b:free": { in: 0, out: 0 },
+  });
+});
+
+test("OpenRouter models get the provider's price, so their budgets count and stop work", async () => {
+  clearProviderPrices();
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "dude-orprice-"));
+  let fetches = 0;
+  const opts = {
+    packDirs: [packsDir],
+    config: { ...structuredClone(DEFAULT_CONFIG), globalSkills: false, model: "openrouter:openai/gpt-4o-mini" },
+    resolveModel: () => model(1_000_000, 1_000_000), // $0.15 in + $0.60 out = $0.75 a turn
+    browser: false,
+    fetchPrices: async () => {
+      fetches++;
+      return { "openai/gpt-4o-mini": { in: 0.15, out: 0.6 } };
+    },
+  };
+  const runtime = new Runtime(home, opts);
+  const sam = runtime.hire("researcher", { budgetUsd: 1 });
+  assert.equal(await runtime.send(sam.id, "first"), "ok"); // no price yet: fetched before the turn, not refused
+  assert.equal(runtime.spendThisMonth(sam.id).usd, 0.75);
+  await runtime.send(sam.id, "second");
+  assert.equal(runtime.findHire(sam.id)!.paused, true);
+  assert.equal(fetches, 1, "fetched once, then cached");
+  await runtime.close();
+
+  // a fresh process reads the cache without asking again; your own price still wins
+  clearProviderPrices();
+  const again = new Runtime(home, { ...opts, config: { ...opts.config, prices: { "openrouter:openai/gpt-4o-mini": { in: 1, out: 1 } } } });
+  assert.deepEqual(priceFor("openrouter:openai/gpt-4o-mini", { prices: {} }), { in: 0.15, out: 0.6 });
+  assert.deepEqual(priceFor("openrouter:openai/gpt-4o-mini", again.config), { in: 1, out: 1 });
+  assert.equal(fetches, 1);
+  await again.close();
+  clearProviderPrices();
+});
+
+test("an unreachable price list leaves the budget asking for a price", async () => {
+  clearProviderPrices();
+  const runtime = new Runtime(fs.mkdtempSync(path.join(os.tmpdir(), "dude-orprice-")), {
+    packDirs: [packsDir],
+    config: { ...structuredClone(DEFAULT_CONFIG), globalSkills: false, model: "openrouter:some/model" },
+    resolveModel: () => model(10, 10),
+    browser: false,
+    fetchPrices: async () => {
+      throw new Error("offline");
+    },
+  });
+  const sam = runtime.hire("researcher", { budgetUsd: 1 });
+  await assert.rejects(() => runtime.send(sam.id, "go"), /has no price/);
+  await runtime.close();
 });
 
 test("an employee pauses at their budget and the next task is refused", async () => {

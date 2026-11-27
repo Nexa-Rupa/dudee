@@ -31,7 +31,19 @@ export {
   type CustomProvider,
 } from "./providers.js";
 export { falRun } from "./tools/media.js";
-export { KNOWN_PRICES, priceFor, costOf, monthStart } from "./pricing.js";
+export {
+  KNOWN_PRICES,
+  PRICED_PROVIDERS,
+  priceFor,
+  costOf,
+  monthStart,
+  loadProviderPrices,
+  rememberProviderPrices,
+  clearProviderPrices,
+  parseOpenRouterPrices,
+  fetchProviderPrices,
+  formatUsd,
+} from "./pricing.js";
 export { exportTeam, importTeam, type TeamFile, type ImportResult } from "./team.js";
 export { TOOL_GROUPS, ALWAYS_ON, htmlToText } from "./tools/builtin.js";
 export {

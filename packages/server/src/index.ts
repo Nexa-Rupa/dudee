@@ -310,10 +310,12 @@ export async function startServer(opts: ServerOptions) {
       if (parts[0] === "settings" && method === "GET") {
         const c = runtime.config;
         // models in use, with the price dudee will charge them at (null = unknown, needs a price)
-        const inUse = [...new Set([c.model, ...c.fallbackModels, ...runtime.listHires().map((h) => {
+        const models = [...new Set([c.model, ...c.fallbackModels, ...runtime.listHires().map((h) => {
           const p = runtime.packFor(h);
           return p ? runtime.modelFor(h, p) : c.model;
-        })])].map((id) => ({ model: id, price: priceFor(id, c), custom: !!c.prices[id] }));
+        })])];
+        await runtime.ensurePrices(models); // OpenRouter publishes its prices; fetch them if we have none yet
+        const inUse = models.map((id) => ({ model: id, price: priceFor(id, c), custom: !!c.prices[id] }));
         return send(res, 200, {
           globalSkills: c.globalSkills, extraTools: c.extraTools, skillDirs: c.skillDirs, company: c.company, model: c.model,
           goals: c.goals, budgetUsd: c.budgetUsd, prices: inUse, fallbackModels: c.fallbackModels,

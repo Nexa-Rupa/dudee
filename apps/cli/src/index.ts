@@ -20,6 +20,7 @@ import {
   isInitialized,
   keySource,
   listModels,
+  formatUsd,
   loadConfig,
   loadSecrets,
   parseModelId,
@@ -59,6 +60,7 @@ const green = paint(32);
 const yellow = paint(33);
 const red = paint(31);
 const cyan = paint(36);
+const money = formatUsd;
 
 const home = resolveHome();
 
@@ -424,17 +426,17 @@ program
           saveConfig(home, runtime.config);
         }
         const s = runtime.spendThisMonth();
-        console.log(`Team: $${s.usd.toFixed(2)} this month${runtime.config.budgetUsd !== null ? ` of $${runtime.config.budgetUsd}` : ""}`);
+        console.log(`Team: ${money(s.usd)} this month${runtime.config.budgetUsd !== null ? ` of $${runtime.config.budgetUsd}` : ""}`);
         for (const h of runtime.listHires()) {
           const hs = runtime.spendThisMonth(h.id);
           const tag = h.paused ? yellow(" paused") : "";
-          console.log(`  ${h.name.padEnd(12)} $${hs.usd.toFixed(2)}${h.budgetUsd !== null ? ` of $${h.budgetUsd}` : ""}${tag}`);
+          console.log(`  ${h.name.padEnd(12)} ${money(hs.usd)}${h.budgetUsd !== null ? ` of $${h.budgetUsd}` : ""}${tag}`);
         }
         if (s.unpricedTurns) console.log(dim(`  ${s.unpricedTurns} task(s) used models with no price; add prices in Settings.`));
       } else {
         if (value !== undefined) runtime.setBudget(name, value);
         const h = runtime.findHire(name)!;
-        console.log(`${h.name}: $${runtime.spendThisMonth(h.id).usd.toFixed(2)} this month${h.budgetUsd !== null ? ` of $${h.budgetUsd}` : ""}`);
+        console.log(`${h.name}: ${money(runtime.spendThisMonth(h.id).usd)} this month${h.budgetUsd !== null ? ` of $${h.budgetUsd}` : ""}`);
       }
     } catch (err) {
       console.error(red(errorText(err)));

@@ -8,7 +8,7 @@ import { Memory } from "./memory.js";
 import { McpHub } from "./mcp.js";
 import { loadSecrets, resolveModel, setCustomProviders } from "./providers.js";
 import { renderSkill, sharedSkills } from "./skills.js";
-import { costOf, monthStart, priceFor } from "./pricing.js";
+import { PRICED_PROVIDERS, costOf, fetchProviderPrices, formatUsd, loadProviderPrices, monthStart, priceFor, rememberProviderPrices } from "./pricing.js";
 import { knownKeyValues } from "./env.js";
 import { onAccountSite, postingVerdict, type PostingWindow } from "./posting.js";
 import { loadPacks } from "./packs.js";
@@ -22,6 +22,7 @@ import type { McpSource } from "./mcp.js";
 import type {
   ApprovalDecision,
   ApprovalHandler,
+  ModelPrice,
   AskHandler,
   SkillSpec,
   DudeConfig,
@@ -51,7 +52,14 @@ export interface RuntimeOptions {
   config?: DudeConfig;
   /** Start a browser for packs that list `browser`. Default true; tests turn it off. */
   browser?: boolean;
+  /** Fetch a provider's published prices (OpenRouter). Tests replace it; the default asks the provider. */
+  fetchPrices?: (provider: string) => Promise<Record<string, ModelPrice>>;
 }
+
+/** Fetch a provider's prices again when a model has none and the last try is older than this... */
+const PRICE_RETRY_MS = 60 * 60 * 1000;
+/** ...and refresh them in the background once they are this old. */
+const PRICE_REFRESH_MS = 24 * 60 * 60 * 1000;
 
 export interface SendOptions {
   /** Who is speaking: a teammate's name, "routine:<id>", or undefined for the user. */
@@ -115,6 +123,44 @@ export class Runtime {
     this.mcp = new McpHub(this.config.mcpServers);
     this.vault = new Vault(home);
     this.composio = new Composio(home);
+    this.pricesFetchedAt = loadProviderPrices(home);
+  }
+
+  // ── prices providers publish ─────────────────────────────────────────────
+  private pricesFetchedAt: Record<string, Date> = {};
+  private pricesInFlight = new Map<string, Promise<void>>();
+
+  /** Fetch a provider's prices now, once at a time. A failure leaves the old prices in place. */
+  refreshPrices(provider: string): Promise<void> {
+    const pending = this.pricesInFlight.get(provider);
+    if (pending) return pending;
+    const job = (async () => {
+      try {
+        const prices = await (this.opts.fetchPrices ?? fetchProviderPrices)(provider);
+        if (Object.keys(prices).length) rememberProviderPrices(this.home, provider, prices);
+      } catch {
+        // offline or the provider is down: try again later, the user can still price it in Settings
+      } finally {
+        this.pricesFetchedAt[provider] = new Date();
+        this.pricesInFlight.delete(provider);
+      }
+    })();
+    this.pricesInFlight.set(provider, job);
+    return job;
+  }
+
+  /** Make sure models from providers that publish prices have one before a turn counts its cost. */
+  async ensurePrices(models: string[]) {
+    const now = Date.now();
+    const waits: Promise<void>[] = [];
+    for (const provider of new Set(models.map((m) => m.split(":")[0]))) {
+      if (!PRICED_PROVIDERS.has(provider)) continue;
+      const age = now - (this.pricesFetchedAt[provider]?.getTime() ?? 0);
+      const missing = models.some((m) => m.startsWith(`${provider}:`) && !priceFor(m, this.config));
+      if (missing && age > PRICE_RETRY_MS) waits.push(this.refreshPrices(provider));
+      else if (age > PRICE_REFRESH_MS) void this.refreshPrices(provider); // prices change; don't hold the turn up
+    }
+    await Promise.all(waits);
   }
 
   // ── events ───────────────────────────────────────────────────────────────
@@ -292,11 +338,11 @@ export class Runtime {
       this.store.setHirePaused(hire.id, true);
       this.record(hire.id, {
         kind: "notice",
-        text: `Paused: reached the $${limit} monthly budget ($${after.toFixed(2)} spent). Raise the budget or resume to continue.`,
+        text: `Paused: reached the $${limit} monthly budget (${formatUsd(after)} spent). Raise the budget or resume to continue.`,
       });
       this.emit({ type: "team-changed" });
     } else if (before < limit * 0.8 && after >= limit * 0.8) {
-      this.record(hire.id, { kind: "notice", text: `Heads up: $${after.toFixed(2)} of the $${limit} monthly budget used.` });
+      this.record(hire.id, { kind: "notice", text: `Heads up: ${formatUsd(after)} of the $${limit} monthly budget used.` });
     }
   }
 
@@ -378,6 +424,7 @@ export class Runtime {
     if (!pack) throw new Error(`${hire.name}'s pack "${hire.packId}" is not installed`);
     if (opts.signal?.aborted) return STOPPED; // the task that asked for this was stopped while it waited
     const modelId = opts.model ?? this.modelFor(hire, pack);
+    await this.ensurePrices([modelId, ...this.config.fallbackModels]);
     const blocked = this.blockedReason(hire, modelId);
     if (blocked) {
       this.record(hire.id, { kind: "notice", text: blocked });
